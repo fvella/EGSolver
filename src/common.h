@@ -160,7 +160,6 @@
 // algoritmo da usare per mpg
 #define ALGOR_EG 6
 #define ALGOR_EG0 7
-#define COMPARA 8
 #define DEFAULT_ALGOR ALGOR_EG
 
 // 2^DEFAULT_LOOP_SLICE e' il numero di loop per ZP in un lancio di un kernel.

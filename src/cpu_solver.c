@@ -325,9 +325,6 @@ void cpu_solver() {
 	deltacpusoltime += ((double)tp.millitm)/1000;
 
 	switch (configuration.algoritmo) {
-		case COMPARA:
-			cpu_compara();
-			break;
 		case ALGOR_EG0: // versione di EG naive (presa da master per facilitare multithread)
 			EG0_cpu_solver();
 			break;

@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
 				break;
 		}
 
-		if (configuration.algoritmo != COMPARA) {
+	
 			if (configuration.onelineout != NO_OUTPUT) {
 				printf("\nSolution:\n");fflush(stdout);
 				if (configuration.onelineout == YES_ONELINEOUT) {
@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 			} else {
 				printf("\nSolution output omitted.\n");fflush(stdout);
 			}
-		}
+		
 		dealloca_memoria_host();
 		if (configuration.computationType == GPU_COMPUTATION) {
 				dealloca_memoria_device();
