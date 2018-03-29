@@ -7,6 +7,7 @@
 
 
 #include "cpu_solver.h"
+#include <omp.h>
 
 extern char* str;
 extern int counter_nodi;
@@ -38,9 +39,50 @@ extern uint timeout_expired;
 extern config  configuration;
 extern stat statistics;
 
+//host_csrPtrInSuccLists;
+//host_csrPesiArchi;
+//host_csrSuccLists;
+
+
+// MACRO DI DEBUG 
+#define PRINTSTATUS_ZP(STR,NUM)		{ { int idx; int idy; printf("%s:%ld:\n", STR, NUM); \
+	printf("-----owner 0 -------\n"); \
+	for (idx=0; idx < counter_nodi0; idx++) { \
+		printf("%d\t", idx); \
+		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
+			printf(" %d", host_csrSuccLists[idy]); \
+		} \
+		printf("\t"); \
+		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
+			printf(" %d", host_csrPesiArchi[idy]); \
+		} \
+		printf("\n"); \
+	} \
+	printf("-----owner 1 -------\n"); \
+	for (idx=counter_nodi0; idx < counter_nodi; idx++) { \
+		printf("%d\t", idx); \
+		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
+			printf(" %d", host_csrSuccLists[idy]); \
+		} \
+		printf("\t"); \
+		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
+			printf(" %d", host_csrPesiArchi[idy]); \
+		} \
+		printf("\n"); \
+	} \
+	printf("--------------------\n"); \
+	for (idx=0; idx<num_nodi; idx++) { printf("v1(%d)=%d\t", idx, data1[idx]); } \
+	printf("\n"); \
+	for (idx=0; idx<num_nodi; idx++) { printf("V2(%d)=%d\t", idx, data2[idx]); } \
+	printf("\n"); \
+	printf("====================\n"); } }
+
+// FINE MACRO DI DEBUG
+
+
 
 void EG0_cpu_solver() {
-	int idx;
+	int idx, lidx;
 	int idy;
 	int val;
 	long max_loop = configuration.max_loop_val;
@@ -65,6 +107,7 @@ void EG0_cpu_solver() {
 
 	data1 = host_ResNodeValues1;
 	data2 = host_ResNodeValues2;
+        #pragma omp parallel for private (idx) 
 	for (idx=0; idx<counter_nodi; idx++) {
 		data1[idx] =0;
 		data2[idx] =0;
@@ -73,20 +116,22 @@ void EG0_cpu_solver() {
 
 	for (loop=1; loop<=max_loop; loop++) {
 		flag1=0;
+                #pragma omp parallel for private(tempval, idy, lidx)
 		for (idx=0; idx<counter_nodi; idx++) {
-			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
-			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
+                        lidx=idx;
+			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[lidx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[lidx]]);
+			for (idy=(host_csrPtrInSuccLists[lidx])+1; idy < host_csrPtrInSuccLists[lidx+1]; idy++) {
 				val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
 				if ((idx<counter_nodi0) && (tempval > val)) {
 					tempval = val;
 				}
-				if ((idx>=counter_nodi0) && (tempval < val)) {
+				if ((lidx>=counter_nodi0) && (tempval < val)) {
 					tempval = val;
 				}
 			}
-			if (data2[idx] < tempval) {
+			if (data2[lidx] < tempval) {
 				flag1=1;
-				data2[idx] = tempval;
+				data2[lidx] = tempval;
 			}
 		}
 
@@ -261,6 +306,93 @@ void EG_cpu_solver() {
 
 
 
+void BV_cpu_solver() {
+	printf("\tWARNING ######   BV algorithm not yet implemented on CPU\n");
+}
+
+
+
+void ZP_cpu_solver() {
+	int idx;
+	int idy;
+	long max_loop = configuration.max_loop_val;
+	long loop;
+
+	int *data1;
+	int *data2;
+	int *temp;
+
+	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 4*N*N*W
+		//CHECK OVERFLOW IN:  max_loop = 4*((long)num_nodi)*((long)num_nodi)*((long)max_pesi);
+		if ( ((4*num_nodi) > LONG_MAX/num_nodi) || (max_pesi > LONG_MAX/(((long)num_nodi)*((long)num_nodi))) ) {
+			// overflow handling
+			sprintf(str,"4 * %d * %d * %d", num_nodi, num_nodi, max_pesi);
+			exitWithError("Error too many loops: %s --> overflow\n", str);
+		} else {
+			max_loop = 4*((long)num_nodi)*((long)num_nodi)*((long)max_pesi);
+		}
+	}
+
+	data1 = host_ResNodeValues1;
+	data2 = host_ResNodeValues2;
+	printf("Running ZP algorithm on CPU. Loops to go: %ld  (num nodes=%d max weight=%d)\n", max_loop, num_nodi, max_pesi); fflush(stdout);
+//	PRINTSTATUS_ZP("BEFORE START. LOOPS TO GO",max_loop);
+	for (loop=1; loop<=max_loop; loop++) {
+		for (idx=0; idx<counter_nodi0; idx++) {
+			data2[idx] = host_csrPesiArchi[host_csrPtrInSuccLists[idx]] + data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]]; //INT_MIN;
+			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
+				data2[idx] = MAX(data2[idx], host_csrPesiArchi[idy] + data1[host_csrSuccLists[idy]]);
+			}
+		}
+		for (idx=counter_nodi0; idx<counter_nodi; idx++) {
+			data2[idx] = host_csrPesiArchi[host_csrPtrInSuccLists[idx]] + data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]]; //INT_MAX;
+			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
+				data2[idx] = MIN(data2[idx], host_csrPesiArchi[idy] + data1[host_csrSuccLists[idy]]);
+			}
+		}
+//		PRINTSTATUS_ZP("AFTER LOOP",loop);
+//printf("\ninterm   after %ld loops:\n",loop);
+//for (idx=0; idx<num_nodi; idx++) { printf("V(%d)=%d\t", idx, data2[idx]); }
+//printf("\n");   
+
+		temp = data1;
+		data1 = data2;
+		data2 = temp;
+		if (timeout_expired == 1) {break;}
+	}
+	if ((max_loop%2) != 0) { //se numero loop e' dispari, il risultato e' nell'array host_ResNodeValues2[]
+		temp = host_ResNodeValues1;
+		host_ResNodeValues1 = host_ResNodeValues2;
+		host_ResNodeValues2 = temp;
+	}
+}
+
+
+
+void cpu_compara() {
+	int idx;
+
+	int *data1;
+	int *data2;
+	int temp,i;
+
+	data1 = host_ResNodeValues1;
+	data2 = host_csrDataArchiAux;
+	printf("Running COMPARA on CPU. (num nodes=%d num archi=%d max weight=%d)\n", num_nodi, num_archi, max_pesi); fflush(stdout);
+
+	for (i=0; i<configuration.max_loop_val; i++) {
+		for (idx=0; idx<num_archi; idx++) {
+			temp = data1[host_csrSuccLists[idx]] + host_csrPesiArchi[idx];
+			data2[idx] = temp;
+		}
+	}
+
+	printf("End COMPARA on CPU\n"); fflush(stdout);
+}
+
+
+
+
 
 
 
@@ -277,6 +409,9 @@ void cpu_solver() {
 	deltacpusoltime += ((double)tp.millitm)/1000;
 
 	switch (configuration.algoritmo) {
+		case COMPARA:
+			cpu_compara();
+			break;
 		case ALGOR_EG0: // versione di EG naive (presa da master per facilitare multithread)
 			EG0_cpu_solver();
 			break;
