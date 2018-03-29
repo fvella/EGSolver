@@ -1,0 +1,216 @@
+# git ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+*~
+
+## gitignore per file/dir di mgpsolver
+bin/*
+!bin/dir.info
+doxydoc/*
+!doxydoc/dir.info
+partial
+src/parser.h
+src/parser.lex
+src/parser.lex.c
+src/parser.y
+src/parser.y.c
+
+
+## C++.gitignore:
+# Compiled Object files
+*.slo
+#*.lo
+#*.o
+#*.obj
+# Precompiled Headers
+#*.gch
+#*.pch
+# Compiled Dynamic libraries
+#*.so
+#*.dylib
+#*.dll
+# Fortran module files
+*.mod
+# Compiled Static libraries
+*.lai
+#*.la
+#*.a
+#*.lib
+# Executables
+#*.exe
+#*.out
+#*.app
+
+## C.gitignore:
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+# Precompiled Headers
+*.gch
+*.pch
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+# Executables
+*.exe
+#*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+## TeX.gitignore:
+## Core latex/pdflatex auxiliary files:
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+## Intermediate documents:
+*.dvi
+*-converted-to.*
+# these rules might exclude image files for figures etc.
+# *.ps
+# *.eps
+# *.pdf
+## Bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.brf
+*.run.xml
+## Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+## Auxiliary and intermediate files from other packages:
+# algorithms
+*.alg
+*.loa
+# amsthm
+*.thm
+# beamer
+*.nav
+*.snm
+*.vrb
+# glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+# hyperref
+*.brf
+# listings
+*.lol
+# makeidx
+*.idx
+*.ilg
+*.ind
+*.ist
+# minitoc
+*.maf
+*.mtc
+*.mtc0
+# minted
+*.pyg
+# morewrites
+*.mw
+# nomencl
+*.nlo
+# sagetex
+*.sagetex.sage
+*.sagetex.py
+*.sagetex.scmd
+# sympy
+*.sout
+*.sympy
+sympy-plots-for-*.tex/
+# todonotes
+*.tdo
+# xindy
+*.xdy
+## Emacs.gitignore:
+# -*- mode: gitignore; -*-
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+# Org-mode
+.org-id-locations
+*_archive
+# flymake-mode
+*_flymake.*
+# eshell files
+/eshell/history
+/eshell/lastdir
+# elpa packages
+/elpa/
+# reftex files
+*.rel
+# AUCTeX auto folder
+/auto/
+# cask packages
+.cask/
+
+
+# LibreOffice locks
+.~lock.*#
+
+# KDE directory preferences
+.directory
+
+## OSX.gitignore:
+.DS_Store
+.AppleDouble
+.LSOverride
+# Icon must end with two \r
+Icon
+# Thumbnails
+._*
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+## vim.gitignore:
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
+
+## Java.gitignore:
+*.class
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+# Package Files #
+#*.jar
+#*.war
+#*.ear
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
