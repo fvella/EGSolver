@@ -100,7 +100,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;
+					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
 			}
 		//}
@@ -148,7 +148,7 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;
+					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
 			}
 		//}
@@ -191,66 +191,6 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
 }
 
 
-
-
-
-
-/** \brief Calcolo su GPU dell'algoritmo EG node-based: IMPLEMENTA ALGORITMO SEMPLIFICATO (e quindi errato)
- *
- * \details Implementazione node-based.
- * \n Un thread per nodo. Ogni thread calcola il max (o min) dei valori relativi a tutti i suoi successori
- * con una scansione lineare.
- *
- * \n I thread di ogni blocco eseguono slice loops su thread-per-block nodi. 
- * I nodi sono quindi partizionati tra blocchi. 
- * Se il kernel viene eseguito da diversi blocchi lo scheduler determina in quali partizioni di nodi
- * e in che ordine far evolvere il calcolo. Non e' garantito che i valori di ResNodeValues[] evolvano alla
- * stessa "velocita'". 
- * 
- * \warning Il for-loop in un blocco viene interrotto quando sh_flag==0. Per effetto del partizionamento/scheduling descritto
- * sopra, potrebbe accadere che blocchi diversi eseguano un diverso numero di loop (inferiore o uguale a slice).
- * Quindi in totale per alcuni nodi potrebbe non effettuarsi il numero di loop richiesto. Conseguentemente
- * Porebbe essere necessatio compiera altri loop per raggiugere il punto fisso.
- * 
- **/
-//CALL:kernel_EG_all_global_loop<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi, configuration.loop_slice_for_EG);
-__global__ void kernel_EG_all_global_loop(const int num_0nodes, const int num_nodi, const int MG_pesi, const long slice) {
-	int tidx = THREAD_ID;
-	int temp, val, idy, old;
-	long loop;
-	__shared__ int sh_flag;
-
-	if (threadIdx.x == 0) { sh_flag=0; }
-	__syncthreads();
-
-
-	if (tidx < num_nodi) {
-		for (loop=0; loop<slice; loop++) {
-			old = dev_ResNodeValues1[tidx];
-			temp = OMINUS(dev_ResNodeValues1[dev_csrSuccLists[dev_csrPtrInSuccLists[tidx]]] , dev_csrPesiArchi[dev_csrPtrInSuccLists[tidx]]);
-			if (tidx<num_0nodes) {
-				for (idy=(dev_csrPtrInSuccLists[tidx])+1; idy < dev_csrPtrInSuccLists[tidx+1]; idy++) {
-					val = OMINUS(dev_ResNodeValues1[dev_csrSuccLists[idy]] , dev_csrPesiArchi[idy]);
-					if (temp > val) {
-						temp = val;
-					}
-				}
-			} else {
-				for (idy=(dev_csrPtrInSuccLists[tidx])+1; idy < dev_csrPtrInSuccLists[tidx+1]; idy++) {
-					val = OMINUS(dev_ResNodeValues1[dev_csrSuccLists[idy]] , dev_csrPesiArchi[idy]);
-					if (temp < val) {
-						temp = val;
-					}
-				}
-			}
-			dev_ResNodeValues1[tidx] = temp;
-			if (temp != old) {sh_flag=1;}
-//			__syncthreads();
-		}
-	}
-	__syncthreads();
-	if (threadIdx.x == 0) { if (sh_flag==1) { (*dev_flag) = 1; } }
-}
 
 
 
@@ -324,27 +264,7 @@ void EG_gpu_solver() {
 
 
 	if (configuration.loop_slice_for_EG != 1) {printf("WARNING: configuration.loop_slice_for_EG=%d  ignored!\n",configuration.loop_slice_for_EG);fflush(stdout);}
-	if (configuration.loop_slice_for_EG < -1 ) {  //" > 1)"  DISABILITATO: implementazione kernel_EG_all_global_loop errata
-		(*host_flag)=1;
-		printf("Running EG_loop on GPU. (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d nbs=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, nbs, tpb); fflush(stdout);
-		while ((extloop>=configuration.loop_slice_for_EG) && ((*host_flag)!=0)) {
-	//		printf("\n(prea) after %ld calls (V2):  max_loop=%ld extloop=%ld slice=%d flag=%d\n",(max_loop-extloop), max_loop, extloop, configuration.loop_slice_for_EG, (*host_flag));fflush(stdout);
-			cudaMemset(hdev_flag, 0, sizeof(int));
-			kernel_EG_all_global_loop<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi, configuration.loop_slice_for_EG);
-			DEVSYNCANDCHECK_KER("kernel_EG_all_global_loop (1) done")
-			extloop -= configuration.loop_slice_for_EG;
-		// per compensare il disallineamento dei blocks, basare il while solo su flag e attivare la riga seguente
-		//	kernel_EG_all_global<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
-		//	DEVSYNCANDCHECK_KER("kernel_EG_all_global (X) done")
-			cudaMemcpy(host_flag, hdev_flag, sizeof(int),cudaMemcpyDeviceToHost);
-		}
-		if ((extloop>0) && ((*host_flag)!=0)) {
-			//printf("\n(b) after %ld calls (V2) last: \n",(max_loop-extloop));fflush(stdout);
-//			printf("\n(b) after %ld calls (V2):  max_loop=%ld extloop=%ld slice=%d flag=%d\n",(max_loop-extloop), max_loop, extloop, configuration.loop_slice_for_EG, (*host_flag));fflush(stdout);
-			kernel_EG_all_global_loop<<<1, configuration.threadsPerBlock>>>(counter_nodi0, num_nodi, MG_pesi, extloop);
-			DEVSYNCANDCHECK_KER("kernel_EG_all_global_loop (2) done")
-		}
-	} else {
+	else {
 		printf("Running EG on GPU. (dev_EG_alg_shfl_full.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
 
 		numAttivi = num_nodi;
@@ -357,8 +277,6 @@ void EG_gpu_solver() {
 		PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
 
 		while ((extloop>0) && (numAttivi>0)) {
-			//kernel_EG_all_global_OLD<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
-			//kernel_EG_all_global<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
 			tpb = ((2*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi, tpb));
 

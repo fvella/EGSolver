@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) {
 				break;
 		}
 
-	
+		if (configuration.algoritmo != COMPARA) {
 			if (configuration.onelineout != NO_OUTPUT) {
 				printf("\nSolution:\n");fflush(stdout);
 				if (configuration.onelineout == YES_ONELINEOUT) {
@@ -322,7 +322,7 @@ int main(int argc, char *argv[]) {
 			} else {
 				printf("\nSolution output omitted.\n");fflush(stdout);
 			}
-		
+		}
 		dealloca_memoria_host();
 		if (configuration.computationType == GPU_COMPUTATION) {
 				dealloca_memoria_device();
@@ -364,7 +364,6 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --tb T\n\tSet T=2^n as the number of threads-per-block. (Effective with --gpu. Default: T=%d)\n",DEFAULT_THREADSPERBLOCK);
 	fprintf(stderr,"  --eg [N]\n\tUse basic implementation of EG algorithm (node driven). Performs at most N loops. (Default: on, N=|MG||V|)\n");
 	fprintf(stderr,"  --eg0 [N]\n\tUse naive implementation of EG algorithm (node driven). Performs at most N loops. (Only effective with --cpu. Default: off, N=|MG||V|)\n");
-	fprintf(stderr,"  --slice [S]\n\tFor gpu computations, splits the N loops in a sequence of 1+N/(2^S) calls, each one making (at most) 2^S loops. (Effective with --gpu. Default: S:%d if --eg, %d otherwise)\n", DEFAULT_LOOP_SLICE_FOR_EG, DEFAULT_LOOP_SLICE);
 	fprintf(stderr,"\n Useful weird options:\n");
 	fprintf(stderr,"  --printdegrees\n\tPrint statistics about in/out degrees of nodes. (Only effective with --cpu. Default: off)\n");
 	fprintf(stderr,"  --onelineout\n\tSolution in a single text line. (Default: off)\n");

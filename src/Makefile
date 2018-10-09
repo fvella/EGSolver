@@ -2,9 +2,9 @@
 #scegliere la compute capability del target device:
 #CAPABILITY = -arch=sm_20
 #CAPABILITY = -arch=sm_21
-CAPABILITY = -arch=sm_30
+#CAPABILITY = -arch=sm_30
 #CAPABILITY = -arch=sm_35
-#CAPABILITY = -arch=sm_52
+CAPABILITY = -arch=sm_52
 
 
 CC = gcc

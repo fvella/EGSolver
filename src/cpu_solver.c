@@ -7,7 +7,6 @@
 
 
 #include "cpu_solver.h"
-#include <omp.h>
 
 extern char* str;
 extern int counter_nodi;
@@ -39,50 +38,9 @@ extern uint timeout_expired;
 extern config  configuration;
 extern stat statistics;
 
-//host_csrPtrInSuccLists;
-//host_csrPesiArchi;
-//host_csrSuccLists;
-
-
-// MACRO DI DEBUG 
-#define PRINTSTATUS_ZP(STR,NUM)		{ { int idx; int idy; printf("%s:%ld:\n", STR, NUM); \
-	printf("-----owner 0 -------\n"); \
-	for (idx=0; idx < counter_nodi0; idx++) { \
-		printf("%d\t", idx); \
-		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
-			printf(" %d", host_csrSuccLists[idy]); \
-		} \
-		printf("\t"); \
-		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
-			printf(" %d", host_csrPesiArchi[idy]); \
-		} \
-		printf("\n"); \
-	} \
-	printf("-----owner 1 -------\n"); \
-	for (idx=counter_nodi0; idx < counter_nodi; idx++) { \
-		printf("%d\t", idx); \
-		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
-			printf(" %d", host_csrSuccLists[idy]); \
-		} \
-		printf("\t"); \
-		for (idy=(host_csrPtrInSuccLists[idx]); idy < host_csrPtrInSuccLists[idx+1]; idy++) { \
-			printf(" %d", host_csrPesiArchi[idy]); \
-		} \
-		printf("\n"); \
-	} \
-	printf("--------------------\n"); \
-	for (idx=0; idx<num_nodi; idx++) { printf("v1(%d)=%d\t", idx, data1[idx]); } \
-	printf("\n"); \
-	for (idx=0; idx<num_nodi; idx++) { printf("V2(%d)=%d\t", idx, data2[idx]); } \
-	printf("\n"); \
-	printf("====================\n"); } }
-
-// FINE MACRO DI DEBUG
-
-
 
 void EG0_cpu_solver() {
-	int idx, lidx;
+	int idx;
 	int idy;
 	int val;
 	long max_loop = configuration.max_loop_val;
@@ -107,7 +65,6 @@ void EG0_cpu_solver() {
 
 	data1 = host_ResNodeValues1;
 	data2 = host_ResNodeValues2;
-        #pragma omp parallel for private (idx) 
 	for (idx=0; idx<counter_nodi; idx++) {
 		data1[idx] =0;
 		data2[idx] =0;
@@ -116,22 +73,20 @@ void EG0_cpu_solver() {
 
 	for (loop=1; loop<=max_loop; loop++) {
 		flag1=0;
-                #pragma omp parallel for private(tempval, idy, lidx)
 		for (idx=0; idx<counter_nodi; idx++) {
-                        lidx=idx;
-			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[lidx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[lidx]]);
-			for (idy=(host_csrPtrInSuccLists[lidx])+1; idy < host_csrPtrInSuccLists[lidx+1]; idy++) {
+			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
+			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
 				val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
 				if ((idx<counter_nodi0) && (tempval > val)) {
 					tempval = val;
 				}
-				if ((lidx>=counter_nodi0) && (tempval < val)) {
+				if ((idx>=counter_nodi0) && (tempval < val)) {
 					tempval = val;
 				}
 			}
-			if (data2[lidx] < tempval) {
+			if (data2[idx] < tempval) {
 				flag1=1;
-				data2[lidx] = tempval;
+				data2[idx] = tempval;
 			}
 		}
 
@@ -300,9 +255,6 @@ void EG_cpu_solver() {
 
 	printf("End EG on CPU after %ld loops (each loop involves one node only) (flag1=%d)\n", loop-1, flag1);
 }
-
-
-
 
 
 
