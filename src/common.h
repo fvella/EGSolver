@@ -205,6 +205,14 @@
 #define DEFAULT_PRINT_DEGREEHIST NO_PRINT_DEGREEHIST
 
 
+/** criteri di sorting dei nodi */
+#define SORT_N 0
+#define SORT_I 1
+#define SORT_O 2
+#define SORT_A 3
+#define SORT_OI 4
+#define DEFAULT_NODESORT SORT_N
+
 //MACRO:
 #ifndef MAX
         #define MAX( a, b ) ( ((a) > (b)) ? (a) : (b) )
@@ -320,6 +328,8 @@ typedef struct _config {
         long max_loop_val;
         int loop_slice;
         int loop_slice_for_EG;
+
+        uint nodesorting;
 
         uint timeoutOpt;
         uint timeoutSeconds;

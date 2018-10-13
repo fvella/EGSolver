@@ -17,8 +17,8 @@ LIBS = -L /usr/local/cuda/lib64 -lcuda -lcudart -lm  -lstdc++ -lcusparse -lz
 INCLUDES= -I /usr/local/cuda/include
 
 OBJECTS = errori.o  parser.lex.o  parser.y.o  sig_handling.o  dev_solver.o  cpu_solver.o host_csr2csc.o
-CHEADERS = common.h  errori.h  egsolver.h  sig_handling.h cpu_solver.h host_csr2csc.h
-CUHEADERS = utils.h  dev_common.h thrust_wrapper.h
+CHEADERS = common.h  errori.h  egsolver.h  sig_handling.h cpu_solver.h host_csr2csc.h sorting_criteria.h
+CUHEADERS = utils.h  dev_common.h thrust_wrapper.h 
 
 
 BIN_DIR = ../bin

@@ -29,6 +29,7 @@
 #include "egsolver.h"
 #include "cpu_solver.h"
 //#include "dev_common.h"
+#include "sorting_criteria.h"
 
 /** @cond NONDOC */ // non doxycumentati
 //PROTOTIPI da altri sorgenti:
@@ -61,40 +62,88 @@ int my_abstractread(char *buff, int buffsize) {
 
 void output_solution_singleline() {
 	int idx;
-	for (idx=0; idx<num_nodi; idx++) { printf("V(%d)=%d\t", idx, host_ResNodeValues1[idx]); }
+	for (idx=0; idx<num_nodi; idx++) { printf("V(%d)=%d\t", nomeExt_of_nomeInt[mapping[idx]], host_ResNodeValues1[idx]); }
 	printf("\n");
 }
 
 void output_solution_onenodeperline() {
 	int idx;
-	for (idx=0; idx<num_nodi; idx++) { printf("%d\t%d\n", idx, host_ResNodeValues1[idx]); }
+	// RIDONDA: for (idx=0; idx<num_nodi; idx++) { printf("%d : %d(%d--%d)[%d](%d)\t%d\n", nomeExt_of_nomeInt[mapping[idx]], idx, nomeExt_of_nomeInt[idx], nomeInt_of_nomeExt[idx], mapping[nomeExt_of_nomeInt[idx]], mapping[nomeInt_of_nomeExt[idx]], host_ResNodeValues1[idx]); }
+	for (idx=0; idx<num_nodi; idx++) { printf("%d)\t%d\n", nomeExt_of_nomeInt[mapping[idx]], host_ResNodeValues1[idx]); }
 }
 
 
 void remap_instance() {
-	int idx;
 	int idy;
+	int nomeInt, nodoDest, arco;
+
 	if ((input_gametype == GAMETYPE_PARITY) || (input_gametype == GAMETYPE_MPG) || (input_gametype == GAMETYPE_MPG_ARENA)) {
 		csrPtrInSuccLists[counter_nodi] = num_archi;
+
+		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { // calcolo out-degree
+			outDegrees_of_csr[nomeInt] = csrPtrInSuccLists[nomeInt+1] - csrPtrInSuccLists[nomeInt];
+		}
+		for (arco=0; arco < num_archi; arco++) { // calcolo in-degree
+			nodoDest = csrSuccLists[arco];
+			inDegrees_of_csr[nomeInt_of_nomeExt[nodoDest]]++;
+		}
+
+//		printf("Degrees:\nNodo\t Out\t In:\n");
+//		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { printf("%d \t %d \t %d\n", nomeInt, outDegrees_of_csr[nomeInt], inDegrees_of_csr[nomeInt]); }
+//
+//		printf("\nindice   :");
+//		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { printf("%d \t",nomeInt); }
+//		printf("\nIntofExt :");
+//		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { printf("%d \t",nomeInt_of_nomeExt[nomeInt]); }
+//		printf("\nExtofInt :");
+//		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { printf("%d \t",nomeExt_of_nomeInt[nomeInt]); }
+//		printf("\n");
+
+
+
+// Riordina i nodi mettendo prima quelli dell'owner 0:
+// mapping[nomeInternoSorted] = nomeOrdineLettura  dove nomeInterno mette prima gli owner=0
+// revmapping[nomeOrdineLettura] = nomeInternoSorted
 		mapping = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(mapping,"allocazione mapping");
 		revmapping = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(revmapping,"allocazione revmapping");
-		idx=0;
+
 		for (idy=0; idy < counter_nodi; idy++) {
-			if (nodeOwner[idy] == 0) {
-				mapping[idx] = idy;
-				revmapping[idy] = idx;
-				idx++;
-			}
+			mapping[idy] = idy;
 		}
-		assert(idx==counter_nodi0);
+
+/** criteri di sorting dei nodi */
+
+		switch (configuration.nodesorting){
+			case SORT_N:
+				printf("Sorting nodes w.r.t. owner. \n");
+				qsort (mapping , counter_nodi, sizeof(int), prima0poi1);
+				break;
+			case SORT_O:
+				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree\n");
+				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg);
+				break;
+			case SORT_I:
+				printf("Sorting nodes w.r.t. owner, then w.r.t. indegree\n");
+				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_indeg);
+				break;
+			case SORT_OI:
+				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree, then w.r.t. indegree\n");
+				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg_indeg);
+				break;
+			case SORT_A:
+				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree+indegree\n");
+				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_alldeg);
+				break;
+		}
+	
+
+
+//		printf("PRIMA VERS:  "); for (idy=0; idy < counter_nodi; idy++) { printf("%d\t",mapping[idy]); } printf("\n");
+
 		for (idy=0; idy < counter_nodi; idy++) {
-			if (nodeOwner[idy] != 0) {
-				mapping[idx] = idy;
-				revmapping[idy] = idx;
-				idx++;
-			}
+			revmapping[mapping[idy]] = idy;
 		}
-		assert(idx==counter_nodi);
+//		printf("SECON VERS:  "); for (idy=0; idy < counter_nodi; idy++) { printf("%d\t",mapping[idy]); } printf("\n");
 	}  // END GAMETYPE_PARITY || GAMETYPE_MPG ||...
 	else {
 		fprintf(stderr,"INPUT: CASO NON ANCORA IMPLEMENTATO\n");
@@ -122,6 +171,15 @@ void postparsing() {
 	int idxInB = 0;
 	alloca_memoria_host();
 	alloca_memoria_device();
+
+// popola i vettori host_csr...[IntSorted] ricopiando da csr...[Ext]  e rinominando i nodi da 0 a N, in base al riordimanento determinato 
+// nomeInt_of_nomeExt/nomeExt_of_nomeInt e da mapping[]
+// oltre a riordinare/rinominare i nodi si devono coerentemente rinominare gli adiacenti (le destinazioni degli archi)
+// OSS c'e' una doppia rinomina: nomeInt_of_nomeExt/nomeExt_of_nomeInt codificano la corrispondenza tra i nodi nel file (Ext) e
+// una rinomina che li rinomina da 0 a N nell'ordine in cui sono incontrati nel file (Int==nomeOrdineLettura); 
+// Tramite mapping/revmapping invece si tiene conto del riordino che pone prima i nodi che hanno owner=0 
+// ( mapping[nomeInternoSorted] = nomeOrdineLettura  dove nomeInterno mette prima gli owner=0
+// revmapping[nomeOrdineLettura] = nomeInternoSorted )
 
 	for (idx=0; idx < counter_nodi0; idx++) {
 		host_csrPtrInSuccLists[idxInA++] = idxInB;
@@ -163,7 +221,7 @@ void postparsing() {
 		MG_pesi = 0;
 		for (idx=0; idx < counter_nodi; idx++) {
 			maxdelnodo=0;
-			for (idy=csrPtrInSuccLists[idx]; idy < csrPtrInSuccLists[idx+1]; idy++) {
+			for (idy=host_csrPtrInSuccLists[idx]; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
 				maxdelnodo = MAX(maxdelnodo,-(host_csrPesiArchi[idy]));
 			}
 			if (MG_pesi > (INT_MAX - maxdelnodo)) { //Check overflow
@@ -183,6 +241,8 @@ void postparsing() {
 		sqsum += (((double)(csrPtrInSuccLists[idx+1]-csrPtrInSuccLists[idx]))-avg_outdegree) * (((double)(csrPtrInSuccLists[idx+1]-csrPtrInSuccLists[idx]))-avg_outdegree);
 	}
 	stddev_outdegree = sqrt(sqsum/(counter_nodi));
+
+
 }
 
 
@@ -369,6 +429,12 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --onelineout\n\tSolution in a single text line. (Default: off)\n");
 	fprintf(stderr,"  --noout\n\tDo not print the solution explicitly. (Statistics are printed. Default: off)\n");
 	fprintf(stderr,"  --timeout [S]\n\tStops after 1<S<%d sec of GPU solving time (approx.). (Not completely implemented. Default: off, S=%d)\n", INT_MAX, DEFAULT_TIMEOUT_SEC);
+	fprintf(stderr,"\n Profiling options to sort nodes:\n");
+	fprintf(stderr,"  --sort_n\n\tSorting w.r.t. owner (MAX<MIN). (Default)\n");
+	fprintf(stderr,"  --sort_o\n\tSorting w.r.t. owner, then w.r.t. outdegree\n");
+	fprintf(stderr,"  --sort_i\n\tSorting w.r.t. owner, then w.r.t. indegree\n");
+	fprintf(stderr,"  --sort_oi\n\tSorting w.r.t. owner, then w.r.t. outdegree, then w.r.t. indegree\n");
+	fprintf(stderr,"  --sort_a\n\tSorting w.r.t. owner, then w.r.t. outdegree+indegree\n");
 	fprintf(stderr," In case of conflicting options, the last one is used.\n");
 	fprintf(stderr,"\nExpected input format: Nodes are consecutive naturals up to MAXNODE.\n Input format:\n\t[ARENA] MAXNODE [NUMEDGES] ;\n\tnode  owner  node:weight, ..., node:weight  [\"string\"] ;\n \tnode  owner  node:weight, ..., node:weight  [\"string\"] ;\n\n");
 	fflush(stderr);
@@ -410,6 +476,8 @@ void setconfig(int argc, char *argv[]) {
 
 	configuration.timeoutOpt = UNSET_TIMEOUT_OPT;
 	configuration.timeoutSeconds = 0;
+
+	configuration.nodesorting = DEFAULT_NODESORT;
 
 	for( i = 1; i < argc; i++){
 		if((strcmp(argv[i],"--help") == 0) || (strcmp(argv[i],"-?") == 0) || (strcmp(argv[i],"-h") == 0)) {
@@ -564,6 +632,21 @@ void setconfig(int argc, char *argv[]) {
 		}
 		else if(strcmp(argv[i],"--no-weights") == 0) {
 			configuration.add_weights_mode = NOT_ADD_WEIGHTS;
+		}
+		else if(strcmp(argv[i],"--sort_n") == 0) {
+			configuration.nodesorting = SORT_N;
+		}
+		else if(strcmp(argv[i],"--sort_i") == 0) {
+			configuration.nodesorting = SORT_I;
+		}
+		else if(strcmp(argv[i],"--sort_o") == 0) {
+			configuration.nodesorting = SORT_O;
+		}
+		else if(strcmp(argv[i],"--sort_a") == 0) {
+			configuration.nodesorting = SORT_A;
+		}
+		else if(strcmp(argv[i],"--sort_oi") == 0) {
+			configuration.nodesorting = SORT_OI;
 		}
 
 		else

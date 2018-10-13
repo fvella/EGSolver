@@ -56,6 +56,9 @@ int *csrPtrInSuccLists;   /**< num_nodi+1 elementi che puntano in csrPesiArchi[]
 int *csrSuccLists;        /**< nodi successori negli num_archi archi */
 int *revSuccLists;        /**< revSuccLists[i] e' il nodo origine dell'arco che giunge a csrSuccLists[i] (num_archi elementi) */
 
+int *outDegrees_of_csr;
+int *inDegrees_of_csr;
+
 int *nomeExt_of_nomeInt;  /**< num_nodi+1 elementi che memorizzano gli id esterni dei nodi */
 int *nomeInt_of_nomeExt;  /**< relazione inversa di nomeExt_of_nomeInt[] */
 
