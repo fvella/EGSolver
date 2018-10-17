@@ -148,6 +148,13 @@ void mpg_arena_header_proc(int max) {
 	nodePriority = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(nodePriority,"allocazione nodePriority");
 	nodeOwner = (char *)malloc((1+num_nodi)*sizeof(char)); checkNullAllocation(nodeOwner,"allocazione nodeOwner");
 	nodeName = (char **)malloc((1+num_nodi)*sizeof(char*)); checkNullAllocation(nodeName,"allocazione nodeName");
+
+// TODO: temporaneamente allocato. Forse non serve....
+	outDegrees_of_csr = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(outDegrees_of_csr,"allocazione outDegrees_of_csr");
+	memset(outDegrees_of_csr, 0, (1+num_nodi)*sizeof(int));
+	inDegrees_of_csr = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(inDegrees_of_csr,"allocazione inDegrees_of_csr");
+	memset(inDegrees_of_csr, 0, (1+num_nodi)*sizeof(int));
+
 	if ((configuration.algoritmo == ALGOR_EG) || (configuration.algoritmo == ALGOR_EG0)) {
 		nodeFlags = (char *)malloc((1+num_nodi)*sizeof(char)); checkNullAllocation(nodeName,"allocazione nodeFlags");
 		memset(nodeFlags, 0, (1+num_nodi)*sizeof(char));
