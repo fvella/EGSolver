@@ -55,7 +55,7 @@ extern int *hdev_cscPesiArchiPred;
 /** \brief Calcolo su GPU dell'algoritmo EG node-based
  *
  * \details Implementazione node-based.
- * \n k (ora k=2) thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a 1/k dei suoi successori
+ * \n k (ora k=4) thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a 1/k dei suoi successori
  * con una scansione lineare. Poi con warp-shuffle i k thread si comunicano i risultati parziali.
  * Successivamente, qualora il valore ottenuto sia migliore di quello preesistente,
  * aggiorna tale valore e inserisce, con una scansione lineare, tutti i predecessori del nodo nell'insieme dei nodi attivi
@@ -91,19 +91,19 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+1
-		if (off%2==0) {
-               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } // 0 e 2 aggiornano il proprio temp se il caso
+		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 2
-		if (off==0) {
-               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } // 0 aggiorna il proprio temp se il caso
+		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		if (off==0) { // 0 aggiorna il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
 		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
-		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
+		//if (off==0) { // i thread sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
         		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
@@ -150,19 +150,19 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 		
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+1
-		if (off%2==0) {
-               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } // 0 e 2 aggiornano il proprio temp se il caso
+		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO); // i legge il temp  di i+1
-		if (off==0) {
-               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } // 0 aggiorna il proprio temp se il caso
+		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		if (off==0) { // 0 aggiorna il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
 		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
-		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
+		//if (off==0) { // i thread sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
         		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
@@ -288,7 +288,7 @@ void EG_gpu_solver() {
 
 	if (configuration.loop_slice_for_EG != 1) {printf("WARNING: configuration.loop_slice_for_EG=%d  ignored!\n",configuration.loop_slice_for_EG);fflush(stdout);}
 	else {
-		printf("Running EG on GPU. (dev_EG_alg_shfl_full.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
+		printf("Running EG on GPU. (dev_EG_alg_shfl_full_4tpv.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
 
 		numAttivi = num_nodi;
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
