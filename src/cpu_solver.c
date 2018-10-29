@@ -45,6 +45,7 @@ void EG0_cpu_solver() {
 	int val;
 	long max_loop = configuration.max_loop_val;
 	long loop;
+	char str[256];
 
 	int *data1;
 	int *data2;
@@ -54,12 +55,18 @@ void EG0_cpu_solver() {
 
 	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico
 		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-		if (MG_pesi > (LONG_MAX-1)/num_archi) {
+	//	if (MG_pesi > (LONG_MAX-1)/num_archi) {
+	//		// overflow handling
+	//		sprintf(str,"%d * %d", num_archi, MG_pesi);
+	//		exitWithError("Error too many loops: %s --> overflow\n", str);
+	//	} else {
+	//		max_loop = ((long)num_archi)*((long)MG_pesi)+1; // TODO: num_nodi o num_archi ??
+		if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
 			// overflow handling
-			sprintf(str,"%d * %d", num_archi, MG_pesi);
+			sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
 			exitWithError("Error too many loops: %s --> overflow\n", str);
 		} else {
-			max_loop = ((long)num_archi)*((long)MG_pesi)+1;
+			max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
 		}
 	}
 
@@ -114,6 +121,7 @@ void EG_cpu_solver() {
 	int val;
 	long max_loop = configuration.max_loop_val;
 	long loop;
+	char str[256];
 
 	int *data1 = host_ResNodeValues1; // vettore dei risultati (f(v)) inizialmente gia' azzerato
 	int temp;
@@ -136,12 +144,18 @@ void EG_cpu_solver() {
 
 	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
 		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-		if (MG_pesi > (LONG_MAX-1)/num_archi) {
+	//	if (MG_pesi > (LONG_MAX-1)/num_archi) {
+	//		// overflow handling
+	//		sprintf(str,"%d * %d", num_archi, MG_pesi);
+	//		exitWithError("Error too many loops: %s --> overflow\n", str);
+	//	} else {
+	//		max_loop = ((long)num_archi)*((long)MG_pesi)+1; // TODO: num_nodi o num_archi ??
+		if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
 			// overflow handling
-			sprintf(str,"%d * %d", num_archi, MG_pesi);
+			sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
 			exitWithError("Error too many loops: %s --> overflow\n", str);
 		} else {
-			max_loop = ((long)num_archi)*((long)MG_pesi)+1; // TODO: num_nodi o num_archi ??
+			max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
 		}
 	}
 	// inizializza flags e stackL[] (= i nodi "inconsistenti")
@@ -179,6 +193,7 @@ void EG_cpu_solver() {
 	len_queueL = in_queueL-out_queueL; 
 
 	host_csr2csc(num_nodi, num_nodi, num_archi, host_csrPesiArchi, host_csrSuccLists, host_csrPtrInSuccLists, host_cscPesiArchiPred, host_cscPredLists, host_cscPtrInPredLists);
+
 
 	/* Calcolo gli in-degree  */
 	{ int i,d;
@@ -233,7 +248,7 @@ void EG_cpu_solver() {
 
 		// aggiunge predecessori del nodo aggiornato
 		if (data1[idx] < temp) { // il valore aumenta
-		//	printf("  %d : %d --> %d)\n",idx,data1[idx],temp);
+			//printf("  %d : %d --> %d)\n",idx,data1[idx],temp);
 			data1[idx] = temp;
 			flag1=1;
 			// aggiugi PREDs in stackL GREZZO: aggiunge sempre!!!

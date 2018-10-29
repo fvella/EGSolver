@@ -21,7 +21,7 @@ extern int copia_dati_su_device();
 extern void gpu_solver();
 
 
-char str[64];
+char str[256];
 int *nomeExt_of_nomeInt;
 int *nomeInt_of_nomeExt;
 int *mapping;

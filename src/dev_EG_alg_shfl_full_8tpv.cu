@@ -55,7 +55,7 @@ extern int *hdev_cscPesiArchiPred;
 /** \brief Calcolo su GPU dell'algoritmo EG node-based
  *
  * \details Implementazione node-based.
- * \n k (ora k=8) thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a 1/k dei suoi successori
+ * \n k (ora k=2) thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a 1/k dei suoi successori
  * con una scansione lineare. Poi con warp-shuffle i k thread si comunicano i risultati parziali.
  * Successivamente, qualora il valore ottenuto sia migliore di quello preesistente,
  * aggiorna tale valore e inserisce, con una scansione lineare, tutti i predecessori del nodo nell'insieme dei nodi attivi
@@ -72,7 +72,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
 	int aux1, aux2, aux3, aux4, aux5;
 	uint off = (uint)(tidx%OTTO);
 	
-        if (tidx < num_nodi_attivi) {
+        while (tidx < num_nodi_attivi) {
                 nodo = dev_nodeFlags1[tidx/OTTO] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
@@ -91,7 +91,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 
-		aux5 =__shfl_down(temp, 4, OTTO); // i legge il temp  di i+4 (risultato usato solo da 0,1,2,3)
+		aux5 =__shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
@@ -108,7 +108,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
 		}
 		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
-		//if (off==0) { // i thread sono nello stesso warp
+		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
         		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
@@ -121,6 +121,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
 				}
 			}
 		//}
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -136,7 +137,7 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
 	int aux1, aux2, aux3, aux4, aux5;
 	int off = tidx%OTTO;
 	
-        if (tidx < num_nodi_attivi) {
+        while (tidx < num_nodi_attivi) {
                 nodo = dev_nodeFlags2[tidx/OTTO] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
@@ -172,7 +173,7 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
 		}
 		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
-		//if (off==0) { // i thread sono nello stesso warp
+		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
         		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
@@ -185,6 +186,7 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
 				}
 			}
 		//}
+		tidx += (blockDim.x * gridDim.x);
         }
 }
 
@@ -198,7 +200,7 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
         int tidx = THREAD_ID;
         int temp, idy;
 
-        if (tidx < num_nodi) { //un thread per ogni nodo
+        while (tidx < num_nodi) { //un thread per ogni nodo
                 temp = 1;
 		idy=(dev_csrPtrInSuccLists[tidx]);
                 if (tidx<num_0nodes) {
@@ -209,7 +211,7 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
 				idy++;
 			}
 			// set se tutti outedges negativi altrimenti 0
-			dev_nodeFlags1[tidx]= (temp==1) ? (SHIFTNOME+tidx) : 0;
+			dev_nodeFlags1[tidx]= ((temp==1) ? (SHIFTNOME+tidx) : 0);
                 } else {
 			while ((temp==1) && (idy < dev_csrPtrInSuccLists[tidx+1])) {
 				if (dev_csrPesiArchi[idy] < 0) {
@@ -218,8 +220,9 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
 				idy++;
 			}
 			// set se almeno un outedge negativo altrimenti 0
-			dev_nodeFlags1[tidx]= (temp==0) ? (SHIFTNOME+tidx) : 0;
+			dev_nodeFlags1[tidx]= ((temp==0) ? (SHIFTNOME+tidx) : 0);
                 }
+		tidx += (blockDim.x * gridDim.x);
         }
 }
 
@@ -265,6 +268,7 @@ void EG_gpu_solver() {
 	long max_loop = configuration.max_loop_val;
 	long extloop;
 	int numAttivi;
+	char str[256];
 
 	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
@@ -278,17 +282,23 @@ void EG_gpu_solver() {
 
 
 //	printf("Max xhared=%d   bytesPesiArchi=%d   bytesValues=%d   bytesSuccList=%d\n",configuration.sharedMemPerBlock,bytesPesiArchi,bytesValues,bytesSuccList);fflush(stdout);
-	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
-		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-		if (MG_pesi > (LONG_MAX-1)/num_archi) {
-			// overflow handling
-			sprintf(str,"%d * %d", num_archi, MG_pesi);
-			exitWithError("Error too many loops: %s --> overflow\n", str);
-		} else {
-			max_loop = ((long)num_archi)*((long)MG_pesi)+1;  // MEMO: num_archi, non num_nodi ! ! !
-		}
-	}
-	extloop=max_loop;
+        if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
+                //CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
+        //      if (MG_pesi > (LONG_MAX-1)/num_archi) {
+        //              // overflow handling
+        //              sprintf(str,"%d * %d", num_archi, MG_pesi);
+        //              exitWithError("Error too many loops: %s --> overflow\n", str);
+        //      } else {
+        //              max_loop = ((long)num_archi)*((long)MG_pesi)+1;  // MEMO: num_archi, non num_nodi ! ! !
+                if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
+                        // overflow handling
+                        sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
+                        exitWithError("Error too many loops: %s --> overflow\n", str);
+                } else {
+                        max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
+                }
+        }
+        extloop=max_loop;
 
 
 	printf("Transposing arena...\t");fflush(stdout);
