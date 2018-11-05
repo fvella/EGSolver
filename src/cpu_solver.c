@@ -113,15 +113,12 @@ void EG0_cpu_solver() {
 
 
 
-
-
 void EG_cpu_solver() {
 	int idx;
 	int idy;
 	int val;
 	long max_loop = configuration.max_loop_val;
 	long loop;
-	char str[256];
 
 	int *data1 = host_ResNodeValues1; // vettore dei risultati (f(v)) inizialmente gia' azzerato
 	int temp;
@@ -142,22 +139,9 @@ void EG_cpu_solver() {
 	//int *countEG = (int*)malloc(counter_nodi*sizeof(int)); checkNullAllocation(nodeOwner,"allocazione countEG");
 	//memset(countEG, 0, counter_nodi*sizeof(int));
 
-	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
-		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-	//	if (MG_pesi > (LONG_MAX-1)/num_archi) {
-	//		// overflow handling
-	//		sprintf(str,"%d * %d", num_archi, MG_pesi);
-	//		exitWithError("Error too many loops: %s --> overflow\n", str);
-	//	} else {
-	//		max_loop = ((long)num_archi)*((long)MG_pesi)+1; // TODO: num_nodi o num_archi ??
-		if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
-			// overflow handling
-			sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
-			exitWithError("Error too many loops: %s --> overflow\n", str);
-		} else {
-			max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
-		}
-	}
+	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
+
+
 	// inizializza flags e stackL[] (= i nodi "inconsistenti")
 	for (idx=0; idx<counter_nodi0; idx++) {
 		temp=1; // finora sono tutti negativi

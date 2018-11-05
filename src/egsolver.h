@@ -162,5 +162,13 @@ int checkExistsOptionalParameter (int i, int argc, char **argv);
 
 int myatoi(char *str, char *msg, char **argv);
 
+
+
+long aggiorna_max_loop(long Narchi, long Nnodi, long MGpesi, long maxloop);
+
+
+
+
+
 #define FLAGMPGSOLVER_H 1
 #endif

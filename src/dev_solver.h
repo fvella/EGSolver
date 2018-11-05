@@ -19,6 +19,7 @@ extern "C" int copia_dati_su_device();
  **/
 extern "C" void gpu_solver();
 
+extern "C" long aggiorna_max_loop(long Narchi, long Nnodi, long MGpesi, long maxloop);
 
 
 #define FLAGDEVSOLVER_H

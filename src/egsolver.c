@@ -60,6 +60,37 @@ int my_abstractread(char *buff, int buffsize) {
 
 /*********************************/
 
+/* Calcola il bound al numero dei loop. Se maggiore di LONG_MAX, warning e usa LONG_MAX-1 */
+long aggiorna_max_loop(long Narchi, long Nnodi, long MGpesi, long maxloop) {
+
+        char str[256];
+	long res = (maxloop);
+
+
+        if ((res) < ((long)0)) { // default (-1) indica un numero max pari al teorico 
+                //CHECK OVERFLOW IN:  res = Narchi*MGpesi+1;
+        //      if (MGpesi > (LONG_MAX-1)/Narchi) {
+        //              // overflow handling
+        //              sprintf(str,"%d * %d", Narchi, MGpesi);
+        //              exitWithError("Error too many loops: %s --> overflow\n", str);
+        //      } else {
+        //              res = Narchi*MGpesi+1; 
+                if (MGpesi > (LONG_MAX-1)/(Nnodi*Narchi)) {  //TODO: sovrastimo il numero dei loop
+                        // overflow handling
+                        //sprintf(str,"%ld * %ld * %ld > %ld", Nnodi, Narchi, MGpesi, LONG_MAX);
+                        //exitWithError("Error too many loops: %s --> overflow\n", str);
+                        res = LONG_MAX-1;
+                        sprintf(str,"%ld * %ld * %ld > %ld --> using LONG_MAX-1:%ld", Nnodi, Narchi, MGpesi, LONG_MAX, res);
+                        printWarning("WARNING too many loops: %s\n", str);
+                } else {
+                        res = Nnodi * Narchi * MGpesi + 1;
+                }
+        }
+        return(res);
+}
+
+/*********************************/
+
 void output_solution_singleline() {
 	int idx;
 	for (idx=0; idx<num_nodi; idx++) { printf("V(%d)=%d\t", nomeExt_of_nomeInt[mapping[idx]], host_ResNodeValues1[idx]); }

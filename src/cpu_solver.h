@@ -16,6 +16,7 @@
  **/
 void cpu_solver();
 
+long aggiorna_max_loop(long Narchi, long Nnodi, long MGpesi, long maxloop);
 
 #define FLAGCPU_SOLVER_H 1
 #endif

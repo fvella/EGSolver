@@ -48,8 +48,6 @@ extern int *hdev_cscPesiArchiPred;
 
 
 
-
-
 /* SHIFTNOME: per poter usare 0 come valore reset dei flag devo slittare di +1 i nomi dei nodi/flag per non perdere il nodo 0 */
 #define SHIFTNOME 1
 
@@ -57,21 +55,25 @@ extern int *hdev_cscPesiArchiPred;
 /** \brief Calcolo su GPU dell'algoritmo EG node-based
  *
  * \details Implementazione node-based.
- * \n Un thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a tutti i suoi successori
- * con una scansione lineare.
+ * \n k (ora k=2) thread per nodo attivo. Ogni thread calcola il max (o min) dei valori relativi a 1/k dei suoi successori
+ * con una scansione lineare. Poi con warp-shuffle i k thread si comunicano i risultati parziali.
  * Successivamente, qualora il valore ottenuto sia migliore di quello preesistente,
  * aggiorna tale valore e inserisce, con una scansione lineare, tutti i predecessori del nodo nell'insieme dei nodi attivi
+ * Anche in questo caso i k thread processano 1/k dei predecessori.
  *
  * \n Questo kernel si deve alternare con il kernel gemello kernel_EG_all_global_2to1 che opera con i vettori dei flag scambiati
  * 
  **/
+#define SEDICI 16
+
 __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_attivi, const int MG_pesi) {
         int tidx = THREAD_ID;
         int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
+	uint off = (uint)(tidx%SEDICI);
 	
         while (tidx < num_nodi_attivi) {
-                nodo = dev_nodeFlags1[tidx] -SHIFTNOME;
+                nodo = dev_nodeFlags1[tidx/SEDICI] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -80,7 +82,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
 		aux5 = dev_ResNodeValues1[aux3];
 
                 temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1; idy < aux2; idy++) {
+		for (idy=aux1+1+off; idy < aux2; idy+=SEDICI) {  // una parte di lavoro a testa per i thread con off= 0 ... SEDICI-1 
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
@@ -88,17 +90,44 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
                 	if ((nodo<num_0nodes) && (temp > val)) { temp = val; }
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
-        	if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
-        		dev_ResNodeValues1[nodo] = temp;
-			aux1 = dev_cscPtrInPredLists[nodo];
-			aux2 = dev_cscPtrInPredLists[nodo+1];
-			for (idy=aux1; idy < aux2; idy++) {
-				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
-			}
+
+		aux5 =__shfl_down(temp, 8, SEDICI); 
+		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
+		aux5 =__shfl_down(temp, 4, SEDICI); 
+		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		if (off==0) { // 0 aggiorna il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+
+		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+        		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
+        			if (off==0) {dev_ResNodeValues1[nodo] = temp;}
+				aux1 = dev_cscPtrInPredLists[nodo];
+				aux2 = dev_cscPtrInPredLists[nodo+1];
+				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
+					aux3 = dev_cscPredLists[idy];
+					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				}
+			}
+		//}
 		tidx += (blockDim.x * gridDim.x);
-        }
+	}
 }
 
 
@@ -111,39 +140,62 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
         int tidx = THREAD_ID;
         int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
+	int off = tidx%SEDICI;
 	
         while (tidx < num_nodi_attivi) {
-                nodo = dev_nodeFlags2[tidx] -SHIFTNOME;
+                nodo = dev_nodeFlags2[tidx/SEDICI] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
-                //solo se non fatto dal chiamante con  memset  dev_nodeFlags2[tidx] = 0;
 		aux3 = dev_csrSuccLists[aux1];
 		aux4 = dev_csrPesiArchi[aux1];
 		aux5 = dev_ResNodeValues1[aux3];
 
                 temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1; idy < aux2; idy++) {
+		for (idy=aux1+1+off; idy < aux2; idy+=SEDICI) {
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
 			val = OMINUS(aux5 , aux4);
-                	if ((nodo<num_0nodes) && (temp > val)) { 
-                                        temp = val;
-                        }
-                	if ((nodo>=num_0nodes) && (temp < val)) {
-                                        temp = val;
-                        }
+                	if ((nodo<num_0nodes) && (temp > val)) { temp = val; }
+                	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
-        	if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
-        		dev_ResNodeValues1[nodo] = temp;
-			aux1 = dev_cscPtrInPredLists[nodo];
-			aux2 = dev_cscPtrInPredLists[nodo+1];
-			for (idy=aux1; idy < aux2; idy++) {
-				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
-			}
+		
+		aux5 =__shfl_down(temp, 8, SEDICI); 
+		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
+		aux5 =__shfl_down(temp, 4, SEDICI); 
+		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		if (off==0) { // 0 aggiorna il proprio temp se il caso
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+		}
+		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+
+		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
+               		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
+               		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
+        		if (old < temp) { // TODO:  li prendo tutti (da ottimizzare con "count")
+        			if (off==0) {dev_ResNodeValues1[nodo] = temp;}
+				aux1 = dev_cscPtrInPredLists[nodo];
+				aux2 = dev_cscPtrInPredLists[nodo+1];
+				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
+					aux3 = dev_cscPredLists[idy];
+					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				}
+			}
+		//}
 		tidx += (blockDim.x * gridDim.x);
         }
 }
@@ -158,7 +210,7 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
         int tidx = THREAD_ID;
         int temp, idy;
 
-        while (tidx < num_nodi) { //un thread per ogni nodo (se piu' nodi che thread, itera)
+        while (tidx < num_nodi) { //un thread per ogni nodo
                 temp = 1;
 		idy=(dev_csrPtrInSuccLists[tidx]);
                 if (tidx<num_0nodes) {
@@ -183,9 +235,6 @@ __global__ void kernel_EG_initialize(const int num_0nodes, int num_nodi, const i
 		tidx += (blockDim.x * gridDim.x);
         }
 }
-
-
-
 
 
 
@@ -229,7 +278,6 @@ void EG_gpu_solver() {
 	long max_loop = configuration.max_loop_val;
 	long extloop;
 	int numAttivi;
-	char str[256];
 
 	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
@@ -242,24 +290,8 @@ void EG_gpu_solver() {
 
 
 
-//	printf("Max xhared=%d   bytesPesiArchi=%d   bytesValues=%d   bytesSuccList=%d\n",configuration.sharedMemPerBlock,bytesPesiArchi,bytesValues,bytesSuccList);fflush(stdout);
-	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
-		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-	//	if (MG_pesi > (LONG_MAX-1)/num_archi) {
-	//		// overflow handling
-	//		sprintf(str,"%d * %d", num_archi, MG_pesi);
-	//		exitWithError("Error too many loops: %s --> overflow\n", str);
-	//	} else {
-	//		max_loop = ((long)num_archi)*((long)MG_pesi)+1;  // MEMO: num_archi, non num_nodi ! ! !
-		if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
-			// overflow handling
-			sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
-			exitWithError("Error too many loops: %s --> overflow\n", str);
-		} else {
-			max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
-		}
-	}
-	extloop=max_loop;
+	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
+        extloop=max_loop;
 
 
 	printf("Transposing arena...\t");fflush(stdout);
@@ -269,23 +301,23 @@ void EG_gpu_solver() {
 
 	if (configuration.loop_slice_for_EG != 1) {printf("WARNING: configuration.loop_slice_for_EG=%d  ignored!\n",configuration.loop_slice_for_EG);fflush(stdout);}
 	else {
-		printf("Running EG on GPU. (dev_EG_alg_shfl_none.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
+		printf("Running EG on GPU. (dev_EG_alg_shfl_full_16tpv.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
 
 		numAttivi = num_nodi;
+//		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
 		kernel_EG_initialize<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_initialize  done")
 		PRINTDEBUGSTUFF("dopo kernel_EG_initialize")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
 		PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
-		//printf("attivi=%d (INIT)   extloop=%d\n", numAttivi,extloop);fflush(stdout);
 
 		while ((extloop>0) && (numAttivi>0)) {
-			tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
+			tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
 
-			//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-			kernel_EG_all_global_NEW1to2<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
+//			printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+			kernel_EG_all_global_NEW1to2<<<nbs, tpb>>>(counter_nodi0, SEDICI*numAttivi, MG_pesi);
 			DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 			PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW1to2")
 
@@ -298,10 +330,10 @@ void EG_gpu_solver() {
 			extloop--;
 			if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-			tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
-			//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-			kernel_EG_all_global_NEW2to1<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
+			tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
+//			printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+			kernel_EG_all_global_NEW2to1<<<nbs, tpb>>>(counter_nodi0, SEDICI*numAttivi, MG_pesi);
 			DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 			PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW2to1")
 
@@ -312,10 +344,11 @@ void EG_gpu_solver() {
 			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags2")
 
 			extloop--;
-			//printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
+//			printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
 
 			if (timeout_expired == 1) {break;}
 		}
+		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes)\n", max_loop-extloop);
 	}
 //	cudaDeviceSynchronize();
 }

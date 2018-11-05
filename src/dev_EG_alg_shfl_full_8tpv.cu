@@ -268,7 +268,6 @@ void EG_gpu_solver() {
 	long max_loop = configuration.max_loop_val;
 	long extloop;
 	int numAttivi;
-	char str[256];
 
 	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
@@ -281,23 +280,7 @@ void EG_gpu_solver() {
 
 
 
-//	printf("Max xhared=%d   bytesPesiArchi=%d   bytesValues=%d   bytesSuccList=%d\n",configuration.sharedMemPerBlock,bytesPesiArchi,bytesValues,bytesSuccList);fflush(stdout);
-        if (max_loop < 0) { // default (-1) indica un numero max pari al teorico 
-                //CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-        //      if (MG_pesi > (LONG_MAX-1)/num_archi) {
-        //              // overflow handling
-        //              sprintf(str,"%d * %d", num_archi, MG_pesi);
-        //              exitWithError("Error too many loops: %s --> overflow\n", str);
-        //      } else {
-        //              max_loop = ((long)num_archi)*((long)MG_pesi)+1;  // MEMO: num_archi, non num_nodi ! ! !
-                if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
-                        // overflow handling
-                        sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
-                        exitWithError("Error too many loops: %s --> overflow\n", str);
-                } else {
-                        max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
-                }
-        }
+	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
         extloop=max_loop;
 
 
@@ -355,6 +338,7 @@ void EG_gpu_solver() {
 
 			if (timeout_expired == 1) {break;}
 		}
+		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes)\n", max_loop-extloop);
 	}
 //	cudaDeviceSynchronize();
 }
