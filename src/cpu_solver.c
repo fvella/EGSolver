@@ -45,7 +45,6 @@ void EG0_cpu_solver() {
 	int val;
 	long max_loop = configuration.max_loop_val;
 	long loop;
-	char str[256];
 
 	int *data1;
 	int *data2;
@@ -53,22 +52,9 @@ void EG0_cpu_solver() {
 	int tempval;
 	int flag1=0;
 
-	if (max_loop < 0) { // default (-1) indica un numero max pari al teorico
-		//CHECK OVERFLOW IN:  max_loop = ((long)num_archi)*((long)MG_pesi)+1;
-	//	if (MG_pesi > (LONG_MAX-1)/num_archi) {
-	//		// overflow handling
-	//		sprintf(str,"%d * %d", num_archi, MG_pesi);
-	//		exitWithError("Error too many loops: %s --> overflow\n", str);
-	//	} else {
-	//		max_loop = ((long)num_archi)*((long)MG_pesi)+1; // TODO: num_nodi o num_archi ??
-		if (((long)MG_pesi) > (LONG_MAX-1)/(((long)num_nodi)*((long)num_archi))) {  //TODO: sovrastimo il numero dei loop
-			// overflow handling
-			sprintf(str,"%d * %d * %d > %ld", num_nodi, num_archi, MG_pesi, LONG_MAX);
-			exitWithError("Error too many loops: %s --> overflow\n", str);
-		} else {
-			max_loop = ((long)num_nodi) * ((long)num_archi)*((long)MG_pesi)+1;
-		}
-	}
+	printf("Initializing cpu EG0 solver.\n");
+
+	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
 
 	data1 = host_ResNodeValues1;
 	data2 = host_ResNodeValues2;
@@ -126,21 +112,19 @@ void EG_cpu_solver() {
 	int *stackL = host_csrDataArchiAux; //uso spazio host_csrDataArchiAux[] per memorizzare l'insieme L dei nodi con (potenziali) "inconsistenze"
 						//inoltre uso il vettore di flags nodeFlags[] come bitmap per evitare di inserire doppi in stackL[]
 						// N.B:: dato che ogni nodo ha in-degree e out-degree non nulli si ha  num_archi>=num_nodi
-	int top_stackL = 0; // altezza dello stackL
-	//int *queueL = stackL; // invece di stack uso queue
+	int top_stackL = 0; // altezza dello stackL  //SCEGLIENDO questa si usa L come stack
+	//int *queueL = stackL; // invece di stack uso queue  //SCEGLIENDO questa si usa L come queue
 	int in_queueL = 0; 
 	int out_queueL = 0; 
 	int len_queueL = 0; 
+	// Ora usa L come queue, le linee di codice per usare L come stack sono commentate.
+	// Sperimentalmente, sembra che queue si comporti in media meglio di stack (per le istanze viste)
 
 
 
-	printf("Initializing cpu EG solver.\n");
-
-	//int *countEG = (int*)malloc(counter_nodi*sizeof(int)); checkNullAllocation(nodeOwner,"allocazione countEG");
-	//memset(countEG, 0, counter_nodi*sizeof(int));
+	printf("Initializing cpu EG  solver.\n");
 
 	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
-
 
 	// inizializza flags e stackL[] (= i nodi "inconsistenti")
 	for (idx=0; idx<counter_nodi0; idx++) {
@@ -203,18 +187,22 @@ void EG_cpu_solver() {
 		printf("%d\n", numAllOutDegree[LEN_DEGREEHIST-1]);
 	}
 
-	printf("Running EG on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
+	// Loop di calcolo dell'initial credit problem:
+	printf("Running EG  on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
 
 	loop=1;
 	//while ((top_stackL>0) && (loop<=max_loop)) {
 	while ((len_queueL>0) && (loop<=max_loop)) {
+
+		// DUE modi (a seconda che L sia usato come stack o queue) per non selezionare gli elementi di L in ordine, ma pseudo-casualmente:
 		//int r = rand()%top_stackL; int tt = stackL[r]; stackL[r] = stackL[top_stackL]; stackL[top_stackL] = tt;
 		//int r = rand()%len_queueL; int tt = stackL[(out_queueL+r)%num_nodi]; stackL[(out_queueL+r)%num_nodi] = stackL[out_queueL]; stackL[out_queueL] = tt;
+		// Solo per sperimentare. Ora DISATTIVATI.
 
 		loop++;
 		flag1=0;
-		//idx = stackL[--top_stackL];  //preleva uno dei nodi da processare
-		idx = stackL[out_queueL]; out_queueL=(out_queueL+1)%num_nodi;  //preleva uno dei nodi da processare
+		//idx = stackL[--top_stackL];  //preleva uno dei nodi da processare usando L come stack
+		idx = stackL[out_queueL]; out_queueL=(out_queueL+1)%num_nodi;  //preleva uno dei nodi da processare usando L come queue
 		len_queueL--;
 		nodeFlags[idx]=0;   //riazzero per il ciclo successivo
 	
@@ -235,24 +223,24 @@ void EG_cpu_solver() {
 			//printf("  %d : %d --> %d)\n",idx,data1[idx],temp);
 			data1[idx] = temp;
 			flag1=1;
-			// aggiugi PREDs in stackL GREZZO: aggiunge sempre!!!
+			// aggiugi PREDs in stackL GREZZO: aggiunge sempre!!! non usa counter come nell'articolo di Raffaella&C.
 			int idz;
 			for (idz=host_cscPtrInPredLists[idx]; idz<host_cscPtrInPredLists[idx+1]; idz++) {
 				if (nodeFlags[host_cscPredLists[idz]] == 0) {
-					//stackL[top_stackL++] = host_cscPredLists[idz];
-					stackL[in_queueL] = host_cscPredLists[idz];  in_queueL=(in_queueL+1)%num_nodi; 
+					//stackL[top_stackL++] = host_cscPredLists[idz]; // L come stack
+					stackL[in_queueL] = host_cscPredLists[idz];  in_queueL=(in_queueL+1)%num_nodi;  // L come queue
 					nodeFlags[host_cscPredLists[idz]]=1;
-		len_queueL++;
+					len_queueL++; // L come queue
 				}
 			}
 		}
 		
-		//if ((flag1 == 0) && (top_stackL==0)) {break;}
-		if ((flag1 == 0) && (len_queueL==0)) {break;}
+		//if ((flag1 == 0) && (top_stackL==0)) {break;} // L come stack
+		if ((flag1 == 0) && (len_queueL==0)) {break;}  // L come queue
 		if (timeout_expired == 1) {break;}
 	}
 
-	printf("End EG on CPU after %ld loops (each loop involves one node only) (flag1=%d)\n", loop-1, flag1);
+	printf("End EG  on CPU after %ld loops (each loop involves one node only) (flag1=%d)\n", loop-1, flag1);
 }
 
 
