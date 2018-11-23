@@ -1,0 +1,18 @@
+SORGENTE=/home/formis/SincroServer_mpgsolver/istanzeDiProva/Istanze_ML/parity_games/modelchecking/games
+DESTINO=/home/formis/SincroServer_mpgsolver/Output_K40c/Istanze_ML/parity_games/modelchecking/games
+SOLVER=/home/formis/SincroServer_mpgsolver/mpgsolver/bin/mpgsolver 
+
+for istanza in $SORGENTE/*.mpg* ; do \
+tem=`basename $istanza .gz`
+sol=`basename $tem .mpg`
+echo ;
+date ;
+echo "$tem --> $sol.sol" ;
+$SOLVER  --input $istanza  --eg  --gpu --solve --timeout 300  > $DESTINO/${sol}.sol  2>&1 
+echo "--------------------------";
+sleep 5 ;
+done
+
+
+echo "==========================";
+
