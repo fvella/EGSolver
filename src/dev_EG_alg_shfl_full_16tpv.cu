@@ -275,6 +275,7 @@ void EG_gpu_traspose_graph() {
  **/
 void EG_gpu_solver() {
 
+	long total_num_processed_nodes = 0;
 	long max_loop = configuration.max_loop_val;
 	long extloop;
 	int numAttivi;
@@ -311,6 +312,8 @@ void EG_gpu_solver() {
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
 		PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
+                //printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
+                total_num_processed_nodes += (long)numAttivi;
 
 		while ((extloop>0) && (numAttivi>0)) {
 			tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
@@ -327,6 +330,8 @@ void EG_gpu_solver() {
 			CUDASAFE( cudaMemset(hdev_nodeFlags1, 0, num_nodi*sizeof(hdev_nodeFlags1[0])) , "cudaMemset hdev_nodeFlags1");
 			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags1")
 
+                        //printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
+                        total_num_processed_nodes += (long)numAttivi;
 			extloop--;
 			if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
@@ -343,12 +348,14 @@ void EG_gpu_solver() {
 			CUDASAFE( cudaMemset(hdev_nodeFlags2, 0, num_nodi*sizeof(hdev_nodeFlags2[0])) , "cudaMemset hdev_nodeFlags2");
 			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags2")
 
+                        //printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
+                        total_num_processed_nodes += (long)numAttivi;
 			extloop--;
 //			printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
 
 			if (timeout_expired == 1) {break;}
 		}
-		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes)\n", max_loop-extloop);
+		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes). Processed nodes %ld\n", max_loop-extloop, total_num_processed_nodes);
 	}
 //	cudaDeviceSynchronize();
 }

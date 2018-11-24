@@ -23,7 +23,7 @@ CUHEADERS = utils.h  dev_common.h thrust_wrapper.h
 
 BIN_DIR = ../bin
 
-.PHONY: clean all help
+.PHONY: clean all help versioniShuffling
 
 #Opzioni di compilazione per il gcc
 CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp
@@ -116,5 +116,26 @@ clean:
 	rm -f *.o parser.y parser.h parser.y.c parser.lex parser.lex.c  $(BIN_DIR)/egsolver
 
 
+versioniShuffling:
+	cp dev_EG_alg_shfl_full_2tpv.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_2tpv
+	cp dev_EG_alg_shfl_full_4tpv.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_4tpv
+	cp dev_EG_alg_shfl_full_8tpv.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_8tpv
+	cp dev_EG_alg_shfl_full_16tpv.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_16tpv
+	cp dev_EG_alg_shfl_none.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_none
 
 

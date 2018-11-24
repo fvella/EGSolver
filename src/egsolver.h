@@ -85,13 +85,13 @@ int *host_flag;                /**< flag di controllo per loop di kernel */
 
 int *host_csrDataArchiAux;       /**< array auriliario di num_archi elementi (compara) */
 
-// definito in cs_common:   int *dev_allData;             // corrispondente a host_allData su device
-// definito in cs_common:   int *dev_csrPtrInSuccLists;   // corrispondente a host_csrPtrInSuccLists su device
-// definito in cs_common:   int *dev_csrSuccLists;        // corrispondente a host_csrSuccLists su device
-// definito in cs_common:   int *dev_csrPesiArchi;        // corrispondente a host_csrPesiArchi su device
-// definito in cs_common:   int *dev_ResNodeValues1       // corrispondente a host_NodeValues su device
-// definito in cs_common:   int *dev_ResNodeValues2       // corrispondente a host_NodeValues su device
-// definito in cs_common:   int *dev_ResNodeValuesAux     // corrispondente a host_NodeValues su device
+// definito in dev_common:   int *dev_allData;             // corrispondente a host_allData su device
+// definito in dev_common:   int *dev_csrPtrInSuccLists;   // corrispondente a host_csrPtrInSuccLists su device
+// definito in dev_common:   int *dev_csrSuccLists;        // corrispondente a host_csrSuccLists su device
+// definito in dev_common:   int *dev_csrPesiArchi;        // corrispondente a host_csrPesiArchi su device
+// definito in dev_common:   int *dev_ResNodeValues1       // corrispondente a host_NodeValues su device
+// definito in dev_common:   int *dev_ResNodeValues2       // corrispondente a host_NodeValues su device
+// definito in dev_common:   int *dev_ResNodeValuesAux     // corrispondente a host_NodeValues su device
 
 int *hdev_allData;             /**< var host che memorizza ptr-host di dev_allData su device */
 int *hdev_csrPtrInSuccLists;   /**< idem per dev_csrPtrInSuccLists */
