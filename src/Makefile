@@ -117,22 +117,32 @@ clean:
 
 
 versioniShuffling:
+	# making with shuffle 2:
 	cp dev_EG_alg_shfl_full_2tpv.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
 	$(MAKE) egsolver 
 	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_2tpv
+	# making with shuffle 4:
 	cp dev_EG_alg_shfl_full_4tpv.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
 	$(MAKE) egsolver 
 	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_4tpv
+	# making with shuffle 8:
 	cp dev_EG_alg_shfl_full_8tpv.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
 	$(MAKE) egsolver 
 	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_8tpv
+	# making with shuffle 16:
 	cp dev_EG_alg_shfl_full_16tpv.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
 	$(MAKE) egsolver 
 	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_16tpv
+	# making with shuffle 32:
+	cp dev_EG_alg_shfl_full_32tpv.cu dev_EG_alg.cu
+	touch dev_EG_alg.cu
+	$(MAKE) egsolver 
+	mv $(BIN_DIR)/egsolver $(BIN_DIR)/egsolver_shfl_full_32tpv
+	# making without shuffle:
 	cp dev_EG_alg_shfl_none.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
 	$(MAKE) egsolver 
