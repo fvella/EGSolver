@@ -116,7 +116,7 @@ clean:
 	rm -f *.o parser.y parser.h parser.y.c parser.lex parser.lex.c  $(BIN_DIR)/egsolver
 
 
-versioniShuffling:
+versionsShuffling:
 	# making with shuffle 2:
 	cp dev_EG_alg_shfl_full_2tpv.cu dev_EG_alg.cu
 	touch dev_EG_alg.cu
