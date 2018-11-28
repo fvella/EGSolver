@@ -5,7 +5,7 @@
 #CAPABILITY = -arch=sm_30
 #CAPABILITY = -arch=sm_35
 CAPABILITY = ${CUDA_ARC}
-
+CODE = ${SM_CODE}
 
 CC = gcc
 NVCC = nvcc
@@ -70,7 +70,7 @@ egsolver: $(OBJECTS) egsolver.o
 
 
 dev_solver.o: dev_solver.cu dev_EG_alg.cu csr2csc.cu thrust_wrapper.cu utils.cu $(CUHEADERS) $(CHEADERS)
-	$(NVCC)  -c dev_solver.cu utils.cu $(CAPABILITY) $(GFLAG)
+	$(NVCC)  -c dev_solver.cu utils.cu $(CAPABILITY) ${CODE} $(GFLAG)
 
 parser.y.o: parser.y.c
 	$(CC)  -c parser.y.c -o parser.y.o $(CCFLAG) $(INCLUDES)
