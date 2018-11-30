@@ -346,6 +346,7 @@ void EG_gpu_solver() {
 			if (timeout_expired == 1) {break;}
 		}
 		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes). Processed nodes %ld\n", max_loop-extloop, total_num_processed_nodes);
+		statistics.processedNodes = total_num_processed_nodes;
 	}
 //	cudaDeviceSynchronize();
 }

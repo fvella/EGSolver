@@ -292,6 +292,7 @@ typedef struct _stat {
         double inputtime; /**< Tempo impiegato per leggere l'input */
         double alloctime; /**< Tempo impiegato per allocare spazio e trasferire dati su device */
         double solvingtime; /**< Tempo impiegato per risolvere istanza */
+        long processedNodes; /**< Nodi processati */
         uint numkernelscalls;  /**< Numero di invocazioni di kernel */
         ulong device_usedGlobalMem; /**< Quantita' di memoria global allocata sul device */
 } stat;

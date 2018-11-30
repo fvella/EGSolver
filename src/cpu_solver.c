@@ -94,6 +94,7 @@ void EG0_cpu_solver() {
 		host_ResNodeValues2 = temp;
 	}
 	printf("End EG0 on CPU after %ld loops (each loop involves all nodes) (flag1=%d)\n", loop-1, flag1);
+	statistics.processedNodes = ((long)(loop-1))*((long)num_nodi);
 }
 
 
@@ -241,6 +242,7 @@ void EG_cpu_solver() {
 	}
 
 	printf("End EG  on CPU after %ld loops (each loop involves one node only) (flag1=%d)\n", loop-1, flag1);
+	statistics.processedNodes = ((long)(loop-1));
 }
 
 

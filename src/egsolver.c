@@ -386,6 +386,7 @@ int main(int argc, char *argv[]) {
 				//printf("Allocation time:   %14.6lf sec \n", statistics.alloctime/1000 );
 				printf("Solving time: %14.6lf sec \n", statistics.solvingtime );
 				printf("Total time: %14.6lf sec \n", deltatime+statistics.inputtime+ statistics.solvingtime);
+				printf("Nodes per second: %14.2lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime));
 				//printf("Total time:        %14.6lf sec \n", deltatime+statistics.inputtime+ (statistics.alloctime+statistics.solvingtime)/1000 );
 				printf("------------------------\n");
 				break;
@@ -398,6 +399,7 @@ int main(int argc, char *argv[]) {
 				//printf("Allocation time:   %14.6lf sec \n", statistics.alloctime/1000 );
 				printf("Solving time: %14.6lf sec \n", statistics.solvingtime/1000 );  //cuda usa diversa unita' di misura
 				printf("Total time: %14.6lf sec \n", deltatime+statistics.inputtime+ (statistics.solvingtime)/1000 );
+				printf("Nodes per second: %14.2lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime/1000));
 				printf("------------------------\n");
 				break;
 		}
@@ -791,6 +793,7 @@ int myatoi(char *str, char *msg, char **argv) {
 
 void setstat() {
 // SET DEFAULT VALUES
+	statistics.processedNodes=0;
 	statistics.solvingtime=0;
 	statistics.alloctime=0;
 	statistics.inputtime=0;
