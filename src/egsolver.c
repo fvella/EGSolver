@@ -381,12 +381,12 @@ int main(int argc, char *argv[]) {
 			case CPU_COMPUTATION:
 				cpu_solver();
 				printf("------------------------\nTiming:\n");
-				printf("Parsing time: %14.6lf sec \n", statistics.inputtime );
-				printf("Postparsing time: %14.6lf sec \n", deltatime );
+				printf("Parsing time: %lf sec \n", statistics.inputtime );
+				printf("Postparsing time: %lf sec \n", deltatime );
 				//printf("Allocation time:   %14.6lf sec \n", statistics.alloctime/1000 );
-				printf("Solving time: %14.6lf sec \n", statistics.solvingtime );
-				printf("Total time: %14.6lf sec \n", deltatime+statistics.inputtime+ statistics.solvingtime);
-				printf("Nodes per second: %14.2lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime));
+				printf("Solving time: %lf sec \n", statistics.solvingtime );
+				printf("Total time: %lf sec \n", deltatime+statistics.inputtime+ statistics.solvingtime);
+				printf("Nodes per second: %lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime));
 				//printf("Total time:        %14.6lf sec \n", deltatime+statistics.inputtime+ (statistics.alloctime+statistics.solvingtime)/1000 );
 				printf("------------------------\n");
 				break;
@@ -394,12 +394,12 @@ int main(int argc, char *argv[]) {
 				copia_dati_su_device();
 				gpu_solver();
 				printf("------------------------\nTiming:\n");
-				printf("Parsing time: %14.6lf sec \n", statistics.inputtime );
-				printf("Postparsing time: %14.6lf sec \n", deltatime );
+				printf("Parsing time: %lf sec \n", statistics.inputtime );
+				printf("Postparsing time: %lf sec \n", deltatime );
 				//printf("Allocation time:   %14.6lf sec \n", statistics.alloctime/1000 );
-				printf("Solving time: %14.6lf sec \n", statistics.solvingtime/1000 );  //cuda usa diversa unita' di misura
-				printf("Total time: %14.6lf sec \n", deltatime+statistics.inputtime+ (statistics.solvingtime)/1000 );
-				printf("Nodes per second: %14.2lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime/1000));
+				printf("Solving time: %lf sec \n", statistics.solvingtime/1000 );  //cuda usa diversa unita' di misura
+				printf("Total time: %lf sec \n", deltatime+statistics.inputtime+ (statistics.solvingtime)/1000 );
+				printf("Nodes per second: %lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime/1000));
 				printf("------------------------\n");
 				break;
 		}
