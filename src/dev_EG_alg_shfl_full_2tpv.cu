@@ -89,7 +89,7 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 =__shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -139,7 +139,7 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 =__shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }

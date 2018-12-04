@@ -91,32 +91,32 @@ __global__ void kernel_EG_all_global_NEW1to2(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
+		aux5 =__shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -166,32 +166,32 @@ __global__ void kernel_EG_all_global_NEW2to1(const int num_0nodes, int num_nodi_
                 	if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
                 }
 		
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 =__shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
                		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
+		aux5 =__shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
                		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
