@@ -263,6 +263,8 @@ void EG_gpu_solver() {
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
 		PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
 		//printf("attivi=%d (INIT)   extloop=%d\n", numAttivi,extloop);fflush(stdout);
+	printf("\n");
+	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
 		total_num_processed_nodes += (long)numAttivi;
 
 		while ((extloop>0) && (numAttivi>0)) {
@@ -276,6 +278,7 @@ void EG_gpu_solver() {
 
 			remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
 			PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags2")
+	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
 
 			CUDASAFE( cudaMemset(hdev_nodeFlags1, 0, num_nodi*sizeof(hdev_nodeFlags1[0])) , "cudaMemset hdev_nodeFlags1");
 			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags1")
@@ -294,6 +297,7 @@ void EG_gpu_solver() {
 
 			remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
 			PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags1")
+	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
 
 			CUDASAFE( cudaMemset(hdev_nodeFlags2, 0, num_nodi*sizeof(hdev_nodeFlags2[0])) , "cudaMemset hdev_nodeFlags2");
 			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags2")
@@ -305,6 +309,7 @@ void EG_gpu_solver() {
 
 			if (timeout_expired == 1) {break;}
 		}
+	printf("\n");fflush(stdout);
 		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes). Processed nodes %ld\n", max_loop-extloop, total_num_processed_nodes);
 		statistics.processedNodes = total_num_processed_nodes;
 	}

@@ -457,6 +457,7 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --tb T\n\tSet T=2^n as the number of threads-per-block. (Effective with --gpu. Default: T=%d)\n",DEFAULT_THREADSPERBLOCK);
 	fprintf(stderr,"  --eg [N]\n\tUse basic implementation of EG algorithm (node driven). Performs at most N loops. (Default: on, N=|MG||V|)\n");
 	fprintf(stderr,"  --eg0 [N]\n\tUse naive implementation of EG algorithm (node driven). Performs at most N loops. (Only effective with --cpu. Default: off, N=|MG||V|)\n");
+	fprintf(stderr,"  --threshold P\n\tSet threshold for switching between vertex-parallelism and shuffle-based parallelism. (Effective with --gpu. Default: P=%d%%)\n",DEFAULT_SHUFFLETHR);
 	fprintf(stderr,"\n Useful weird options:\n");
 	fprintf(stderr,"  --printdegrees\n\tPrint statistics about in/out degrees of nodes. (Only effective with --cpu. Default: off)\n");
 	fprintf(stderr,"  --onelineout\n\tSolution in a single text line. (Default: off)\n");
@@ -503,6 +504,8 @@ void setconfig(int argc, char *argv[]) {
 	configuration.deviceid = DEFAULT_DEVICE;
 	configuration.threadsPerBlock = DEFAULT_THREADSPERBLOCK;
 
+	configuration.shuffleThreshold = DEFAULT_SHUFFLETHR;
+
 	configuration.max_loop_val = DEFAULT_MAX_LOOP_VAL;
 	configuration.loop_slice = (1<<DEFAULT_LOOP_SLICE);
 	configuration.loop_slice_for_EG = (1<<DEFAULT_LOOP_SLICE_FOR_EG);
@@ -546,6 +549,15 @@ void setconfig(int argc, char *argv[]) {
 			configuration.threadsPerBlock = myatoi(argv[++i], "--tb", argv);  //atoi(argv[++i]);
 			if ((configuration.threadsPerBlock < 1) || (MY_HSTPOPLL(configuration.threadsPerBlock) != 1)) {
 				fprintf(stderr,"\nERROR illegal parameter of option: --tb %s (specify a power of 2)\n\n", argv[i]);
+				printShortUsage(argv[0]);
+				exit(1);
+			}
+		}
+		else if(strcmp(argv[i],"--threshold") == 0) {
+			checkExistsParameter(i+1, argc, "--threshold", argv);
+			configuration.shuffleThreshold = myatoi(argv[++i], "--threshold", argv);  //atoi(argv[++i]);
+			if ((configuration.shuffleThreshold < 0) || (configuration.shuffleThreshold > 100)) {
+				fprintf(stderr,"\nERROR illegal parameter of option: --threshold %s (specify a percentage)\n\n", argv[i]);
 				printShortUsage(argv[0]);
 				exit(1);
 			}

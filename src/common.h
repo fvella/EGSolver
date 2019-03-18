@@ -195,6 +195,10 @@
 /** Valore di default per timeout (sec) */
 #define DEFAULT_TIMEOUT_SEC 60
 
+/** Valore di default per soglia di switch da 32-shuffle a vertex-par (in %) */
+#define DEFAULT_SHUFFLETHR 50
+
+
 /** Valore di default per max_loop_opt_val. Il numero di loop per --zp, --eg, ... */
 #define DEFAULT_MAX_LOOP_VAL (-1)
 
@@ -325,6 +329,8 @@ typedef struct _config {
 
         uint threadsPerBlock; /**< Numero di thread per block */
         uint deviceCount; /**< Numero di device rilevati  */
+
+        int shuffleThreshold; /**< Soglia per passare a 32-shuffle */
 
         long max_loop_val;
         int loop_slice;
