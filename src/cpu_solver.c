@@ -11,6 +11,8 @@
 extern char* str;
 extern int counter_nodi;
 extern int counter_nodi0;
+//extern int counter_nodi0_1;
+//extern int counter_nodi0_2;
 extern int num_nodi;
 extern int num_archi;
 extern int max_pesi;

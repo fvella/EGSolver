@@ -20,6 +20,8 @@ extern int max_pesi;
 extern int MG_pesi;
 extern int num_archi;
 extern int counter_nodi0;
+extern int counter_nodi0_1;
+extern int counter_nodi0_2;
 extern int max_outdegree;
 extern int *host_allData;
 extern int *host_csrPtrInSuccLists;
@@ -85,14 +87,42 @@ void gpu_solver() {
 	cudaEventRecord(cuSolveStart, 0);
 
 	switch (configuration.algoritmo) {
-		case ALGOR_EG0:  // wrap sulla versione --eg su gpu
-			EG_gpu_solver();
+		case ALGOR_EG0:  // wrap sulla versione --eg su gpu con vertex-parallelism
+			EG_gpu_solver_1();
 			break;
 		case ALGOR_EG:
-			EG_gpu_solver();
+	                switch (configuration.kinfOfParallelism) {
+		                case KINDPARALLELISM_VERTEXPAR:
+			                EG_gpu_solver_1();
+			                break;
+		                case KINDPARALLELISM_2SHUFFLING:
+			                EG_gpu_solver_2();
+			                break;
+		                case KINDPARALLELISM_4SHUFFLING:
+			                EG_gpu_solver_4();
+			                break;
+		                case KINDPARALLELISM_8SHUFFLING:
+			                EG_gpu_solver_8();
+			                break;
+		                case KINDPARALLELISM_16SHUFFLING:
+			                EG_gpu_solver_16();
+			                break;
+		                case KINDPARALLELISM_32SHUFFLING:
+			                EG_gpu_solver_32();
+			                break;
+		                case KINDPARALLELISM_PERCENTAGESPLIT:
+			                EG_gpu_solver_PercentageThreshold();
+			                break;
+		                case KINDPARALLELISM_OUTDEGREESPLIT:
+			                EG_gpu_solver_OutdegreeSplit();
+			                break;
+		                default:
+			                EG_gpu_solver_1();
+			                break;
+	                }
 			break;
 		default:
-			EG_gpu_solver();
+			EG_gpu_solver_1();
 			break;
 	}
 

@@ -30,6 +30,7 @@ extern "C" void prefix_summa(int *dev_data, int len)
 extern "C" void remove_nulls(int *dev_data, int len, int *prefixLen)
 {
 
+	//printf(" AAA2 : %d\n",(int)(len));fflush(stdout);
 	thrust::device_ptr<int> dptr(dev_data);
 	//thrust::raw_pointer_cast( );
 	//thrust::remove(dptr, dptr + len, 0);

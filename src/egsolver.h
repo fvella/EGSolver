@@ -35,7 +35,9 @@ uint timeout_expired;
 
 // CSR zero-based (i nodi sono interi e 0 e' un possibile nodo)
 int counter_nodi;         /**< numero di nodi letti */
-int counter_nodi0;        /**< numero di nodi letti */
+int counter_nodi0;        /**< numero di nodi letti con owner 0*/
+int counter_nodi0_1;      /**< numero di nodi letti con owner 0 nella prima parte (usato con partizionamento --outdegree)*/
+int counter_nodi0_2;      /**< numero di nodi letti con owner 0 nella seconda parte (usato con partizionamento --outdegree)*/
 int max_nodo;             /**< massimo numero/nodo (i nodi sono gli interi 0..num_nodi) */
 int min_outdegree;        /**< minimo numero di successori di un nodo */
 int max_outdegree;        /**< massimo numero di successori di un nodo */

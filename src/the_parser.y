@@ -131,6 +131,8 @@ void mpg_arena_header_proc(int max) {
 	input_gametype = GAMETYPE_MPG_ARENA; 
 	counter_nodi = 0;
 	counter_nodi0 = 0;
+	counter_nodi0_1 = 0;
+	counter_nodi0_2 = 0;
 	max_nodo = max;
 	num_nodi = max+1;
 	num_archi = 0;

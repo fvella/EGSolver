@@ -86,13 +86,13 @@
 
 /**< Macro che, se attivato CHECKCUDASAFE, esegue un check di eventuali errori occorsi durante chiamate al device. */
 #ifdef CHECKCUDAERR_MEM
-        #define DEVSYNCANDCHECK_MEM(A)   {cudaDeviceSynchronize(); checkCUDAError(A);}
+        #define DEVSYNCANDCHECK_MEM(A)   {cudaDeviceSynchronize(); checkCUDAError(A);  printf("."); }
 #endif
 #ifndef CHECKCUDAERR_MEM
         #define DEVSYNCANDCHECK_MEM(A)  ;
 #endif
 #ifdef CHECKCUDAERR_KER
-        #define DEVSYNCANDCHECK_KER(A)   {cudaDeviceSynchronize(); checkCUDAError(A);}
+        #define DEVSYNCANDCHECK_KER(A)   {cudaDeviceSynchronize(); checkCUDAError(A);  printf("."); }
 #endif
 #ifndef CHECKCUDAERR_KER
         #define DEVSYNCANDCHECK_KER(A)  ;
@@ -163,10 +163,6 @@
 #define COMPARA 8
 #define DEFAULT_ALGOR ALGOR_EG
 
-// 2^DEFAULT_LOOP_SLICE e' il numero di loop per ZP in un lancio di un kernel.
-// Se servono piu' loop si rilancia piu' volte il kernel
-#define DEFAULT_LOOP_SLICE 17
-#define DEFAULT_LOOP_SLICE_FOR_EG 0
 
 // soluzione o cleaning dell'input
 #define TASK_TRANS_INPUT 0
@@ -195,8 +191,31 @@
 /** Valore di default per timeout (sec) */
 #define DEFAULT_TIMEOUT_SEC 60
 
+/** Tipo di parallelism di default. */
+#define KINDPARALLELISM_VERTEXPAR 1
+#define KINDPARALLELISM_2SHUFFLING 2
+#define KINDPARALLELISM_4SHUFFLING 4
+#define KINDPARALLELISM_8SHUFFLING 8
+#define KINDPARALLELISM_16SHUFFLING 16
+#define KINDPARALLELISM_32SHUFFLING 32
+#define KINDPARALLELISM_PERCENTAGESPLIT 101
+#define KINDPARALLELISM_OUTDEGREESPLIT 102
+#define DEFAULT_KINDPARALLELISM KINDPARALLELISM_VERTEXPAR
+
+
 /** Valore di default per soglia di switch da 32-shuffle a vertex-par (in %) */
 #define DEFAULT_SHUFFLETHR 50
+
+/** Valore di default per split basato su outdegree, tra due diversi tipi di parallelismo: con  2 4 8 16 o 32 shuffle o vertex-par */
+#define DEFAULT_DEGREESPLIT 2
+/** Tipo di parallelismo per la prima parte (1=vertex-par  2,4,8,16,32=shuffle) */
+#define DEFAULT_DEGREESPLIT_LOW 1
+/** Tipo di parallelismo per la seconda parte (1=vertex-par  2,4,8,16,32=shuffle) */
+#define DEFAULT_DEGREESPLIT_UP 32
+/** Soglia per inibire lo split (se ci sono pochi nodi si usa kernel unico) */
+#define DEFAULT_DEGREESPLIT_SOGLIA 0
+/** Tipo di parallelismo per il caso in cui non si supera la soglia e quindi non si partiziona */
+#define DEFAULT_DEGREESPLIT_DOUBLE 1
 
 
 /** Valore di default per max_loop_opt_val. Il numero di loop per --zp, --eg, ... */
@@ -330,11 +349,18 @@ typedef struct _config {
         uint threadsPerBlock; /**< Numero di thread per block */
         uint deviceCount; /**< Numero di device rilevati  */
 
+        int kinfOfParallelism; /**< Tipo di parallelismo: vertex-parallelism o K-shuffling puro oppure partizionato da percentuale attivi oppure da outdegree */
+
         int shuffleThreshold; /**< Soglia per passare a 32-shuffle */
 
+        int shuffleSplit_val; /**< Soglia splitting basato su out-degree */
+        int shuffleSplit_low; /**< Parallelismo da usare per la prima parte */
+        int shuffleSplit_up; /**< Parallelismo da usare per la seconda parte */
+        int shuffleSplit_index; /**< indice del primo nodo della seconda parte della partizione */
+        int shuffleSplit_soglia; /**< soglia  per disattivare lo splitting (quando i nodi sono pochi) */
+        int shuffleSplit_double;/**< Parallelismo da usare se non si partiziona (quando i nodi sono pochi) */
+
         long max_loop_val;
-        int loop_slice;
-        int loop_slice_for_EG;
 
         uint nodesorting;
 

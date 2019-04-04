@@ -107,12 +107,23 @@ void output_solution_onenodeperline() {
 void remap_instance() {
 	int idy;
 	int nomeInt, nodoDest, arco;
+	configuration.shuffleSplit_index = 0; // contatore per numero di nodi nella prima partizione (utile solo se si usa EG_gpu_solver_OutdegreeSplit())
 
 	if ((input_gametype == GAMETYPE_PARITY) || (input_gametype == GAMETYPE_MPG) || (input_gametype == GAMETYPE_MPG_ARENA)) {
 		csrPtrInSuccLists[counter_nodi] = num_archi;
 
 		for (nomeInt=0; nomeInt < counter_nodi; nomeInt++) { // calcolo out-degree
 			outDegrees_of_csr[nomeInt] = csrPtrInSuccLists[nomeInt+1] - csrPtrInSuccLists[nomeInt];
+			if (outDegrees_of_csr[nomeInt] <= configuration.shuffleSplit_val) { //conteggio dei nodi con outdegree leq della soglia per --outdegree
+				configuration.shuffleSplit_index++;
+				if (nodeOwner[nomeInt] == 0) { // se e' dell'owner 0 incremento counter_nodi0_1
+					counter_nodi0_1++;;
+				}
+			} else { // se non e' sotto la soglia e
+				if (nodeOwner[nomeInt] == 0) { // se e' dell'owner 0 incremento counter_nodi0_2
+					counter_nodi0_2++;;
+				}
+			}
 		}
 		for (arco=0; arco < num_archi; arco++) { // calcolo in-degree
 			nodoDest = csrSuccLists[arco];
@@ -132,8 +143,8 @@ void remap_instance() {
 
 
 
-// Riordina i nodi mettendo prima quelli dell'owner 0:
-// mapping[nomeInternoSorted] = nomeOrdineLettura  dove nomeInterno mette prima gli owner=0
+// Riordina i nodi 
+// mapping[nomeInternoSorted] = nomeOrdineLettura  
 // revmapping[nomeOrdineLettura] = nomeInternoSorted
 		mapping = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(mapping,"allocazione mapping");
 		revmapping = (int *)malloc((1+num_nodi)*sizeof(int)); checkNullAllocation(revmapping,"allocazione revmapping");
@@ -144,29 +155,56 @@ void remap_instance() {
 
 /** criteri di sorting dei nodi */
 
-		switch (configuration.nodesorting){
-			case SORT_N:
-				printf("Sorting nodes w.r.t. owner. \n");
-				qsort (mapping , counter_nodi, sizeof(int), prima0poi1);
-				break;
-			case SORT_O:
-				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree\n");
-				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg);
-				break;
-			case SORT_I:
-				printf("Sorting nodes w.r.t. owner, then w.r.t. indegree\n");
-				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_indeg);
-				break;
-			case SORT_OI:
-				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree, then w.r.t. indegree\n");
-				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg_indeg);
-				break;
-			case SORT_A:
-				printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree+indegree\n");
-				qsort (mapping , counter_nodi, sizeof(int), prima0poi1_alldeg);
-				break;
+                if (configuration.kinfOfParallelism == KINDPARALLELISM_OUTDEGREESPLIT) {
+		// uso bucket w.r.t. outdegree: funzione EG_gpu_solver_OutdegreeSplit()
+		// sorting prima rispetto a outdegree, poi rispetto a owner e se richiesto rispetto a SORT_<X>
+			switch (configuration.nodesorting){
+				case SORT_N:
+					printf("Sorting nodes w.r.t. owner (after split). \n");
+					qsort (mapping , counter_nodi, sizeof(int), split_prima0poi1);
+					break;
+				case SORT_O:
+					printf("Sorting nodes w.r.t. owner (after split), then w.r.t. outdegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), split_prima0poi1_outdeg);
+					break;
+				case SORT_I:
+					printf("Sorting nodes w.r.t. owner (after split), then w.r.t. indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), split_prima0poi1_indeg);
+					break;
+				case SORT_OI:
+					printf("Sorting nodes w.r.t. owner (after split), then w.r.t. outdegree, then w.r.t. indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), split_prima0poi1_outdeg_indeg);
+					break;
+				case SORT_A:
+					printf("Sorting nodes w.r.t. owner (after split), then w.r.t. outdegree+indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), split_prima0poi1_alldeg);
+					break;
+			}
+		} else { // caso in cui non si usa bucket
+			switch (configuration.nodesorting){
+				case SORT_N:
+					printf("Sorting nodes w.r.t. owner. \n");
+					qsort (mapping , counter_nodi, sizeof(int), prima0poi1);
+					break;
+				case SORT_O:
+					printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg);
+					break;
+				case SORT_I:
+					printf("Sorting nodes w.r.t. owner, then w.r.t. indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), prima0poi1_indeg);
+					break;
+				case SORT_OI:
+					printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree, then w.r.t. indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), prima0poi1_outdeg_indeg);
+					break;
+				case SORT_A:
+					printf("Sorting nodes w.r.t. owner, then w.r.t. outdegree+indegree\n");
+					qsort (mapping , counter_nodi, sizeof(int), prima0poi1_alldeg);
+					break;
+			}
 		}
-	
+		
 
 
 //		printf("PRIMA VERS:  "); for (idy=0; idy < counter_nodi; idy++) { printf("%d\t",mapping[idy]); } printf("\n");
@@ -208,8 +246,8 @@ void postparsing() {
 // oltre a riordinare/rinominare i nodi si devono coerentemente rinominare gli adiacenti (le destinazioni degli archi)
 // OSS c'e' una doppia rinomina: nomeInt_of_nomeExt/nomeExt_of_nomeInt codificano la corrispondenza tra i nodi nel file (Ext) e
 // una rinomina che li rinomina da 0 a N nell'ordine in cui sono incontrati nel file (Int==nomeOrdineLettura); 
-// Tramite mapping/revmapping invece si tiene conto del riordino che pone prima i nodi che hanno owner=0 
-// ( mapping[nomeInternoSorted] = nomeOrdineLettura  dove nomeInterno mette prima gli owner=0
+// Tramite mapping/revmapping invece si tiene conto del riordino 
+// ( mapping[nomeInternoSorted] = nomeOrdineLettura  
 // revmapping[nomeOrdineLettura] = nomeInternoSorted )
 
 	for (idx=0; idx < counter_nodi0; idx++) {
@@ -457,7 +495,9 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --tb T\n\tSet T=2^n as the number of threads-per-block. (Effective with --gpu. Default: T=%d)\n",DEFAULT_THREADSPERBLOCK);
 	fprintf(stderr,"  --eg [N]\n\tUse basic implementation of EG algorithm (node driven). Performs at most N loops. (Default: on, N=|MG||V|)\n");
 	fprintf(stderr,"  --eg0 [N]\n\tUse naive implementation of EG algorithm (node driven). Performs at most N loops. (Only effective with --cpu. Default: off, N=|MG||V|)\n");
-	fprintf(stderr,"  --threshold P\n\tSet threshold for switching between vertex-parallelism (%%Active>P) and shuffle-based parallelism. (Effective with --gpu. Default: P=%d%%)\n",DEFAULT_SHUFFLETHR);
+	fprintf(stderr,"  --shuffling N\n\tSelect kind of parallelism. N=1:vertex-parallelism. N=2,4,8,16,32:shuffle based (Effective with --gpu. Default: N=1)\n");
+	fprintf(stderr,"  --threshold P\n\tSet threshold for switching between vertex-parallelism (%%Active>P) and 32-shuffle-based parallelism. (Effective with --gpu. Default: off)\n");
+	fprintf(stderr,"  --outdegree N L U [T [D]]\n\tUse different parallelism for nodes with outdegree lesser-or-equal or greater than N\n\tL,U=1,2,4,8,16,32, select the parallelism: 1:vertex parallelism, K>1: K-shuffle based.\n\tApplies if the number of active nodes is greater-or-equal than T, otherwise uses D-shuffle based\n\t(Effective with --gpu. Default: off, T=%d D=%d)\n",DEFAULT_DEGREESPLIT_SOGLIA,DEFAULT_DEGREESPLIT_DOUBLE);
 	fprintf(stderr,"\n Useful weird options:\n");
 	fprintf(stderr,"  --printdegrees\n\tPrint statistics about in/out degrees of nodes. (Only effective with --cpu. Default: off)\n");
 	fprintf(stderr,"  --onelineout\n\tSolution in a single text line. (Default: off)\n");
@@ -469,7 +509,7 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --sort_i\n\tSorting w.r.t. owner, then w.r.t. indegree\n");
 	fprintf(stderr,"  --sort_oi\n\tSorting w.r.t. owner, then w.r.t. outdegree, then w.r.t. indegree\n");
 	fprintf(stderr,"  --sort_a\n\tSorting w.r.t. owner, then w.r.t. outdegree+indegree\n");
-	fprintf(stderr," In case of conflicting options, the last one is used.\n");
+	fprintf(stderr," In case of conflicting options, the last one is used. Can be combined with other options such as --outdegree\n");
 	fprintf(stderr,"\nExpected input format: Nodes are consecutive naturals up to MAXNODE.\n Input format:\n\t[ARENA] MAXNODE [NUMEDGES] ;\n\tnode  owner  node:weight, ..., node:weight  [\"string\"] ;\n \tnode  owner  node:weight, ..., node:weight  [\"string\"] ;\n\n");
 	fflush(stderr);
 }
@@ -506,9 +546,16 @@ void setconfig(int argc, char *argv[]) {
 
 	configuration.shuffleThreshold = DEFAULT_SHUFFLETHR;
 
+	configuration.kinfOfParallelism = DEFAULT_KINDPARALLELISM;
+
+	configuration.shuffleSplit_val = DEFAULT_DEGREESPLIT;
+	configuration.shuffleSplit_low = DEFAULT_DEGREESPLIT_LOW;
+	configuration.shuffleSplit_up = DEFAULT_DEGREESPLIT_UP;
+	configuration.shuffleSplit_index = 0;
+	configuration.shuffleSplit_soglia = DEFAULT_DEGREESPLIT_SOGLIA;
+	configuration.shuffleSplit_double = DEFAULT_DEGREESPLIT_DOUBLE;
+
 	configuration.max_loop_val = DEFAULT_MAX_LOOP_VAL;
-	configuration.loop_slice = (1<<DEFAULT_LOOP_SLICE);
-	configuration.loop_slice_for_EG = (1<<DEFAULT_LOOP_SLICE_FOR_EG);
 
 	configuration.timeoutOpt = UNSET_TIMEOUT_OPT;
 	configuration.timeoutSeconds = 0;
@@ -561,6 +608,59 @@ void setconfig(int argc, char *argv[]) {
 				printShortUsage(argv[0]);
 				exit(1);
 			}
+			configuration.kinfOfParallelism = KINDPARALLELISM_PERCENTAGESPLIT;
+		}
+		else if(strcmp(argv[i],"--outdegree") == 0) {
+			checkExistsParameter(i+1, argc, "--outdegree", argv);
+			configuration.shuffleSplit_val = myatoi(argv[++i], "--outdegree", argv);
+			if ((configuration.shuffleSplit_val < 0)) {
+				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %s (specify a positive integer)\n\n", argv[i]);
+				printShortUsage(argv[0]);
+				exit(1);
+			}
+			checkExistsParameter(i+1, argc, "--outdegree", argv);
+			configuration.shuffleSplit_low = myatoi(argv[++i], "--outdegree", argv);
+			if ((configuration.shuffleSplit_low != 1) && (configuration.shuffleSplit_low != 2) && (configuration.shuffleSplit_low != 4) && 
+                            (configuration.shuffleSplit_low != 8) && (configuration.shuffleSplit_low != 16) && (configuration.shuffleSplit_low != 32)) {
+				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, argv[i]);
+				printShortUsage(argv[0]);
+				exit(1);
+			}
+			checkExistsParameter(i+1, argc, "--outdegree", argv);
+			configuration.shuffleSplit_up = myatoi(argv[++i], "--outdegree", argv);
+			if ((configuration.shuffleSplit_up != 1) && (configuration.shuffleSplit_up != 2) && (configuration.shuffleSplit_up != 4) && 
+                            (configuration.shuffleSplit_up != 8) && (configuration.shuffleSplit_up != 16) && (configuration.shuffleSplit_up != 32)) {
+				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, argv[i]);
+				printShortUsage(argv[0]);
+				exit(1);
+			}
+			configuration.kinfOfParallelism = KINDPARALLELISM_OUTDEGREESPLIT;
+
+			i++;
+			if (checkExistsOptionalParameter(i, argc, argv) == 1) {
+				int ttemp = myatoi(argv[i], "--outdegree", argv);
+				if ((ttemp < 0) || (ttemp >= INT_MAX)) {
+					fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, argv[i]);
+					printShortUsage(argv[0]);
+					exit(1);
+				}
+				configuration.shuffleSplit_soglia = ttemp;
+				i++;
+				if (checkExistsOptionalParameter(i, argc, argv) == 1) {
+					configuration.shuffleSplit_double = myatoi(argv[i], "--outdegree", argv);
+					if ((configuration.shuffleSplit_double != 1) && (configuration.shuffleSplit_double != 2) && (configuration.shuffleSplit_double != 4) && 
+					    (configuration.shuffleSplit_double != 8) && (configuration.shuffleSplit_double != 16) && (configuration.shuffleSplit_double != 32)) {
+						fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, configuration.shuffleSplit_soglia, argv[i]);
+						printShortUsage(argv[0]);
+						exit(1);
+					}
+					configuration.shuffleSplit_soglia = ttemp;
+				} else {
+					i--;
+				}
+			} else {
+				i--;
+			}
 		}
 		else if(strcmp(argv[i],"--input") == 0) {
 			(configuration.filename)[0]='\0';
@@ -582,6 +682,39 @@ void setconfig(int argc, char *argv[]) {
 			// 		fprintf(stderr,"Reading from %s\n",configuration.filename);fflush(stderr);
 			// 	}
 			// }
+		}
+		else if(strcmp(argv[i],"--shuffling") == 0) {
+			i++;
+			if (checkExistsOptionalParameter(i, argc, argv) == 1) {
+				int ttemp = myatoi(argv[i], "--shuffling", argv);  //atoi(argv[i]);
+			        if ((ttemp != 1) && (ttemp != 2) && (ttemp != 4) && (ttemp != 8) && (ttemp != 16) && (ttemp != 32)) {
+					fprintf(stderr,"\nERROR illegal parameter of option: --shuffling %s\n\n", argv[i]);
+					printShortUsage(argv[0]);
+					exit(1);
+				}
+				switch (ttemp){
+					case 1:
+						configuration.kinfOfParallelism = KINDPARALLELISM_VERTEXPAR;
+						break;
+					case 2:
+						configuration.kinfOfParallelism = KINDPARALLELISM_2SHUFFLING;
+						break;
+					case 4:
+						configuration.kinfOfParallelism = KINDPARALLELISM_4SHUFFLING;
+						break;
+					case 8:
+						configuration.kinfOfParallelism = KINDPARALLELISM_8SHUFFLING;
+						break;
+					case 16:
+						configuration.kinfOfParallelism = KINDPARALLELISM_16SHUFFLING;
+						break;
+					case 32:
+						configuration.kinfOfParallelism = KINDPARALLELISM_32SHUFFLING;
+						break;
+				}
+			} else {
+				i--;
+			}
 		}
 		else if(strcmp(argv[i],"--eg") == 0) {
 			i++;

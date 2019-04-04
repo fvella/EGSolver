@@ -16,8 +16,6 @@ extern int *hdev_cscPtrInPredLists;
 extern int *hdev_cscPredLists;
 extern int *hdev_cscPesiArchiPred;
 
-#define SLICESIZE 32
-#define FIRSTOFFSET (SLICESIZE/2)
 
 /* ************************************************************ */
 
@@ -251,68 +249,65 @@ void EG_gpu_solver() {
 	printf("...done\n");fflush(stdout);
 
 
-	if (configuration.loop_slice_for_EG != 1) {printf("WARNING: configuration.loop_slice_for_EG=%d  ignored!\n",configuration.loop_slice_for_EG);fflush(stdout);}
-	else {
-		printf("Running EG on GPU. (dev_EG_alg_shfl_none.cu) (MG_pesi=%d max_loop=%ld extloop=%ld slice=%d num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, configuration.loop_slice_for_EG, num_nodi, max_pesi, tpb); fflush(stdout);
+	printf("Running EG on GPU. (dev_EG_alg_shfl_none.cu) (MG_pesi=%d max_loop=%ld extloop=%ld nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, num_nodi, max_pesi, tpb); fflush(stdout);
 
-		numAttivi = num_nodi;
-		kernel_EG_initialize<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
-		DEVSYNCANDCHECK_KER("kernel_EG_initialize  done")
-		PRINTDEBUGSTUFF("dopo kernel_EG_initialize")
+	numAttivi = num_nodi;
+	kernel_EG_initialize<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
+	DEVSYNCANDCHECK_KER("kernel_EG_initialize  done")
+	PRINTDEBUGSTUFF("dopo kernel_EG_initialize")
+
+	remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
+	PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
+	//printf("attivi=%d (INIT)   extloop=%d\n", numAttivi,extloop);fflush(stdout);
+printf("\n");
+printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
+	total_num_processed_nodes += (long)numAttivi;
+
+	while ((extloop>0) && (numAttivi>0)) {
+		tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
+
+		//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+		kernel_EG_all_global_NEW1to2<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
+		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
+		PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW1to2")
+
+		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
+		PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags2")
+printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
+
+		CUDASAFE( cudaMemset(hdev_nodeFlags1, 0, num_nodi*sizeof(hdev_nodeFlags1[0])) , "cudaMemset hdev_nodeFlags1");
+		PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags1")
+
+		//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
+		total_num_processed_nodes += (long)numAttivi;
+		extloop--;
+		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
+
+		tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
+		//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+		kernel_EG_all_global_NEW2to1<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
+		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
+		PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW2to1")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
-		PRINTDEBUGSTUFF("dopo remove_nulls iniziale")
-		//printf("attivi=%d (INIT)   extloop=%d\n", numAttivi,extloop);fflush(stdout);
-	printf("\n");
-	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
+		PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags1")
+printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
+
+		CUDASAFE( cudaMemset(hdev_nodeFlags2, 0, num_nodi*sizeof(hdev_nodeFlags2[0])) , "cudaMemset hdev_nodeFlags2");
+		PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags2")
+
+		//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
 		total_num_processed_nodes += (long)numAttivi;
+		extloop--;
+		//printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
 
-		while ((extloop>0) && (numAttivi>0)) {
-			tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
-
-			//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-			kernel_EG_all_global_NEW1to2<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
-			DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
-			PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW1to2")
-
-			remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
-			PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags2")
-	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
-
-			CUDASAFE( cudaMemset(hdev_nodeFlags1, 0, num_nodi*sizeof(hdev_nodeFlags1[0])) , "cudaMemset hdev_nodeFlags1");
-			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags1")
-
-			//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
-			total_num_processed_nodes += (long)numAttivi;
-			extloop--;
-			if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
-
-			tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
-			//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-			kernel_EG_all_global_NEW2to1<<<nbs, tpb>>>(counter_nodi0, numAttivi, MG_pesi);
-			DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
-			PRINTDEBUGSTUFF("dopo kernel_EG_all_global_NEW2to1")
-
-			remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
-			PRINTDEBUGSTUFF("dopo remove_nulls nodeFlags1")
-	printf("%2.0f , ", 100*((float)numAttivi)/((float)num_nodi));fflush(stdout);
-
-			CUDASAFE( cudaMemset(hdev_nodeFlags2, 0, num_nodi*sizeof(hdev_nodeFlags2[0])) , "cudaMemset hdev_nodeFlags2");
-			PRINTDEBUGSTUFF("dopo cudaMemset  nodeFlags2")
-
-			//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
-			total_num_processed_nodes += (long)numAttivi;
-			extloop--;
-			//printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
-
-			if (timeout_expired == 1) {break;}
-		}
-	printf("\n");fflush(stdout);
-		printf("End EG on GPU after %ld loops (each loop involves one or more active nodes). Processed nodes %ld\n", max_loop-extloop, total_num_processed_nodes);
-		statistics.processedNodes = total_num_processed_nodes;
+		if (timeout_expired == 1) {break;}
 	}
+	printf("\n");fflush(stdout);
+	printf("End EG on GPU after %ld loops (each loop involves one or more active nodes). Processed nodes %ld\n", max_loop-extloop, total_num_processed_nodes);
+	statistics.processedNodes = total_num_processed_nodes;
 //	cudaDeviceSynchronize();
 }
 
