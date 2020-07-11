@@ -397,7 +397,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -449,7 +449,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
@@ -586,17 +586,17 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -648,17 +648,17 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -796,22 +796,22 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -863,22 +863,22 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1026,27 +1026,27 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1098,27 +1098,27 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1262,32 +1262,32 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1339,32 +1339,32 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1672,7 +1672,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1717,7 +1717,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl(temp, (tidx%32)+1-2*off);  //1-off
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
@@ -1763,17 +1763,17 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1818,17 +1818,17 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1875,22 +1875,22 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1935,22 +1935,22 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1997,27 +1997,27 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2062,27 +2062,27 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2128,32 +2128,32 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2198,32 +2198,32 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 =__shfl_down(temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 =__shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }

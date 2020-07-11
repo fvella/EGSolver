@@ -1,13 +1,4 @@
 
-
-# VALOREPRAGMA deve essere un divisore di 32 
-VALOREPRAGMA = 1
-#VALOREPRAGMA = 2
-#VALOREPRAGMA = 4
-#VALOREPRAGMA = 8
-#VALOREPRAGMA = 16
-#VALOREPRAGMA = 32
-
 #scegliere la compute capability del target device:
 #CAPABILITY = -arch=sm_20
 #CAPABILITY = -arch=sm_21
@@ -36,7 +27,7 @@ BIN_DIR = ../bin
 .PHONY: clean all help versioniShuffling
 
 #Opzioni di compilazione per il gcc
-CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp  -DNPRAG=$(VALOREPRAGMA)
+CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp
 #CCFLAG = -Wall -Wextra -Wformat=2  -O3  
 #CCFLAG = -Wall -Wformat=2  -O3  
 
@@ -46,7 +37,7 @@ CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp  -DNPRAG=$(VAL
 
 #Opzioni di compilazione per NVCC (GPU)
 # Varie opzioni di compilazione per nvcc:
-GFLAG =  -DNPRAG=$(VALOREPRAGMA)
+GFLAG = 
 #GFLAG = -lineinfo
 #GFLAG = --verbose
 #GFLAG = -use_fast_math 

@@ -5,6 +5,7 @@
  *
  */
 
+
 #ifndef FLAGDEV_EG_ALG_CU
 #include "csr2csc.cu"
 #include "thrust_wrapper.cu"
@@ -14,15 +15,6 @@ extern int MG_pesi;
 extern int *hdev_cscPtrInPredLists;
 extern int *hdev_cscPredLists;
 extern int *hdev_cscPesiArchiPred;
-
-
-
-/* MACRO PER CALCOLO thread-per-block   *********************** */
-
-#define EVAL_TPB_PRAGMA(SHUFFLE,PRAGMA,ELEMENTI) ( (((SHUFFLE)*(MYCEIL((ELEMENTI),(PRAGMA))))< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP((SHUFFLE)*(MYCEIL((ELEMENTI),(PRAGMA))), configuration.warpSize))) : configuration.threadsPerBlock )
-
-#define EVAL_TPB(SHUFFLE,ELEMENTI) ( (((SHUFFLE)*(ELEMENTI))                < (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP((SHUFFLE)*(ELEMENTI),                 configuration.warpSize))) : configuration.threadsPerBlock )
-
 
 
 /* ************************************************************ */
@@ -75,12 +67,8 @@ __global__ void kernel_EG_all_global_NEW1to2_none(const int first, const int num
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
 	
-	while (NPRAG*tidx <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if (((tidx*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[((tidx*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -106,8 +94,7 @@ __global__ void kernel_EG_all_global_NEW1to2_none(const int first, const int num
 				dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 			}
 		}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -122,12 +109,8 @@ __global__ void kernel_EG_all_global_NEW2to1_none(const int first, const int num
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
 	
-	while (NPRAG*tidx <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if (((tidx*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[((tidx*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -154,8 +137,7 @@ __global__ void kernel_EG_all_global_NEW2to1_none(const int first, const int num
 				dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 			}
 		}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -309,7 +291,7 @@ void EG_gpu_solver_1() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 #ifdef MYDEBUG
@@ -345,8 +327,8 @@ void EG_gpu_solver_1() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(1,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL((MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 
 		kernel_EG_all_global_NEW1to2_none<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
@@ -359,8 +341,8 @@ void EG_gpu_solver_1() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(1,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL((MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = (numAttivi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 		kernel_EG_all_global_NEW2to1_none<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
@@ -390,20 +372,14 @@ void EG_gpu_solver_1() {
  * \n Questo kernel si deve alternare con il kernel gemello che opera con i vettori dei flag scambiati
  * 
  **/
-#define DUE 2
-
 __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num_0nodes, int num_nodi_attivi, const int MG_pesi) {
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%DUE);
+	uint off = (uint)(tidx%2);
 	
-	while (NPRAG*(tidx/DUE) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/DUE)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[(((tidx/DUE)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx/2+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -412,7 +388,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num
 		aux5 = dev_ResNodeValues1[aux3];
 
 		temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1+off; idy < aux2; idy+=DUE) {  // meta' lavoro a testa tra i due thread con off=0 e off=1 
+		for (idy=aux1+1+off; idy < aux2; idy+=2) {  // meta' lavoro a testa tra i due thread con off=0 e off=1 
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
@@ -420,16 +396,9 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num
 			if ((nodo<num_0nodes) && (temp > val)) { temp = val; }
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
-
 		
-		// VECCHIO:  aux5 = __shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
-                // RIMPIAZZATO DA:
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, DUE);  //0  legge il temp  di 1 
-		if (off==0) { // 0 aggiorna il proprio temp se il caso
-	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
-	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
-		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, DUE);  // tutti (0,1) leggono il temp  di 0
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
+
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
@@ -437,13 +406,13 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num
 				if (off==0) {dev_ResNodeValues1[nodo] = temp;}
 				aux1 = dev_cscPtrInPredLists[nodo];
 				aux2 = dev_cscPtrInPredLists[nodo+1];
-				for (idy=aux1+off; idy < aux2; idy+=DUE) {
+				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
 					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
 			}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		//}
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -459,14 +428,10 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)tidx%DUE;
+	int off = tidx%2;
 	
-	while (NPRAG*(tidx/DUE) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/DUE)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[(((tidx/DUE)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx/2+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -475,7 +440,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 		aux5 = dev_ResNodeValues1[aux3];
 
 		temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1+off; idy < aux2; idy+=DUE) {
+		for (idy=aux1+1+off; idy < aux2; idy+=2) {
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
@@ -484,14 +449,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		// VECCHIO:  aux5 = __shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
-                // RIMPIAZZATO DA:
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, DUE);  //0  legge il temp  di 1 
-		if (off==0) { // 0 aggiorna il proprio temp se il caso
-	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
-	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
-		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, DUE);  // tutti (0,1) leggono il temp  di 0
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
@@ -499,14 +457,13 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 				if (off==0) {dev_ResNodeValues1[nodo] = temp;}
 				aux1 = dev_cscPtrInPredLists[nodo];
 				aux2 = dev_cscPtrInPredLists[nodo+1];
-				for (idy=aux1+off; idy < aux2; idy+=DUE) {
+				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
 					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -524,7 +481,7 @@ void EG_gpu_solver_2() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 
@@ -542,44 +499,45 @@ void EG_gpu_solver_2() {
 	printf("Running EG on GPU. (dev_EG_alg_shfl_full_2tpv.cu) (MG_pesi=%d max_loop=%ld extloop=%ld num nodes=%d max weight=%d tpb=%d)\n", MG_pesi, max_loop, extloop, num_nodi, max_pesi, tpb); fflush(stdout);
 
 	numAttivi = num_nodi;
-//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+//	printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
 	kernel_EG_initialize<<<nbs, tpb>>>(counter_nodi0, num_nodi, MG_pesi);
 	DEVSYNCANDCHECK_KER("kernel_EG_initialize  done")
 
 	remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
-//printf("attivi=%d (INIT)   extloop=%ld\n", numAttivi,extloop);fflush(stdout);
+	       //printf("attivi=%d (INIT)   extloop=%d\n", numAttivi,extloop);fflush(stdout);
 	       total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(DUE,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(DUE*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((2*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi, tpb));
 
-		kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+//		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+		kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(0, counter_nodi0, 2*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 
 		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
 
 		CUDASAFE( cudaMemset(hdev_nodeFlags1, 0, num_nodi*sizeof(hdev_nodeFlags1[0])) , "cudaMemset hdev_nodeFlags1");
 
-//printf("attivi=%d extloop=%ld)\n",numAttivi,extloop);fflush(stdout);
+		//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
 		total_num_processed_nodes += (long)numAttivi;
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(DUE,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(DUE*(MYCEIL(numAttivi,NPRAG)), tpb));
-//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		tpb = ((2*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi, tpb));
+//		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+		kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(0, counter_nodi0, 2*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
 
 		CUDASAFE( cudaMemset(hdev_nodeFlags2, 0, num_nodi*sizeof(hdev_nodeFlags2[0])) , "cudaMemset hdev_nodeFlags2");
 
-//printf("attivi=%d extloop=%ld)\n",numAttivi,extloop);fflush(stdout);
+		//printf("attivi=%d extloop=%d)\n",numAttivi,extloop);fflush(stdout);
 		total_num_processed_nodes += (long)numAttivi;
 		extloop--;
-//printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
+//		printf("numAttivi: %d  residuo extloop=%ld\n",numAttivi,extloop);
 
 		if (timeout_expired == 1) {break;}
 	}
@@ -609,12 +567,8 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv(const int first, const int num
 	int aux1, aux2, aux3, aux4, aux5;
 	uint off = (uint)(tidx%QUATTRO);
 	
-	while (NPRAG*(tidx/QUATTRO) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/QUATTRO)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[(((tidx/QUATTRO)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx/QUATTRO+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -632,17 +586,17 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -657,8 +611,7 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv(const int first, const int num
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -674,14 +627,10 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv(const int first, const int num
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%QUATTRO);
+	int off = tidx%QUATTRO;
 	
-	while (NPRAG*(tidx/QUATTRO) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/QUATTRO)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[(((tidx/QUATTRO)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx/QUATTRO+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -699,17 +648,17 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -724,8 +673,7 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv(const int first, const int num
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -744,7 +692,7 @@ void EG_gpu_solver_4() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 
@@ -770,11 +718,11 @@ void EG_gpu_solver_4() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(QUATTRO,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((QUATTRO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi, tpb));
 
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW1to2_4tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW1to2_4tpv<<<nbs, tpb>>>(0, counter_nodi0, QUATTRO*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 
 		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
@@ -786,10 +734,10 @@ void EG_gpu_solver_4() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(QUATTRO,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((QUATTRO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi, tpb));
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW2to1_4tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW2to1_4tpv<<<nbs, tpb>>>(0, counter_nodi0, QUATTRO*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
@@ -829,12 +777,8 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv(const int first, const int num
 	int aux1, aux2, aux3, aux4, aux5;
 	uint off = (uint)(tidx%OTTO);
 	
-	while (NPRAG*(tidx/OTTO) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/OTTO)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[(((tidx/OTTO)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx/OTTO+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -852,22 +796,22 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -882,8 +826,7 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv(const int first, const int num
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -899,14 +842,10 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv(const int first, const int num
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%OTTO);
+	int off = tidx%OTTO;
 	
-	while (NPRAG*(tidx/OTTO) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/OTTO)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[(((tidx/OTTO)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx/OTTO+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -924,22 +863,22 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv(const int first, const int num
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -954,8 +893,7 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv(const int first, const int num
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -975,7 +913,7 @@ void EG_gpu_solver_8() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 #ifdef MYDEBUG
@@ -1007,11 +945,11 @@ void EG_gpu_solver_8() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(OTTO,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((OTTO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi, tpb));
 
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW1to2_8tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW1to2_8tpv<<<nbs, tpb>>>(0, counter_nodi0, OTTO*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 
 		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
@@ -1023,10 +961,10 @@ void EG_gpu_solver_8() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(OTTO,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((OTTO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi, tpb));
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW2to1_8tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW2to1_8tpv<<<nbs, tpb>>>(0, counter_nodi0, OTTO*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
@@ -1069,12 +1007,8 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv(const int first, const int nu
 	int aux1, aux2, aux3, aux4, aux5;
 	uint off = (uint)(tidx%SEDICI);
 	
-	while (NPRAG*(tidx/SEDICI) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/SEDICI)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[(((tidx/SEDICI)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx/SEDICI+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1092,27 +1026,27 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1127,8 +1061,7 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv(const int first, const int nu
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -1144,14 +1077,10 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv(const int first, const int nu
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%SEDICI);
+	int off = tidx%SEDICI;
 	
-	while (NPRAG*(tidx/SEDICI) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/SEDICI)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[(((tidx/SEDICI)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx/SEDICI+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1169,27 +1098,27 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1204,8 +1133,7 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv(const int first, const int nu
 				}
 			}
 		//}
-	    }
-		tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -1225,7 +1153,7 @@ void EG_gpu_solver_16() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 #ifdef MYDEBUG
@@ -1257,11 +1185,11 @@ void EG_gpu_solver_16() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(SEDICI,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
 
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW1to2_16tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW1to2_16tpv<<<nbs, tpb>>>(0, counter_nodi0, SEDICI*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 
 		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
@@ -1273,10 +1201,10 @@ void EG_gpu_solver_16() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(SEDICI,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW2to1_16tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW2to1_16tpv<<<nbs, tpb>>>(0, counter_nodi0, SEDICI*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
@@ -1315,12 +1243,8 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv(const int first, const int nu
 	int aux1, aux2, aux3, aux4, aux5;
 	uint off = (uint)(tidx%TRENTADUE);
 	
-	while (NPRAG*(tidx/TRENTADUE) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/TRENTADUE)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags1[(((tidx/TRENTADUE)*NPRAG) + k)+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags1[tidx/TRENTADUE+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1338,32 +1262,32 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1378,9 +1302,7 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv(const int first, const int nu
 				}
 			}
 		//}
-	    }
-	        tidx += ((blockDim.x * gridDim.x)*NPRAG);
-		// NOPRAGMA:  tidx += (blockDim.x * gridDim.x);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -1396,15 +1318,10 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv(const int first, const int nu
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%TRENTADUE);
+	int off = tidx%TRENTADUE;
 	
-	while (NPRAG*(tidx/TRENTADUE) <= num_nodi_attivi) { //var  num_nodi_attivi  e' nodi
-	    #pragma unroll
-	    for(int k = 0; k < NPRAG; k++) {
-		if ((((tidx/TRENTADUE)*NPRAG) + k) >= num_nodi_attivi){break;}
-		nodo = dev_nodeFlags2[(((tidx/TRENTADUE)*NPRAG) + k)+first] -SHIFTNOME;
-		// NOPRAGMA:  nodo = dev_nodeFlags2[tidx/TRENTADUE+first] -SHIFTNOME;
-
+	while (tidx < num_nodi_attivi) {
+		nodo = dev_nodeFlags2[tidx/TRENTADUE+first] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1422,32 +1339,32 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv(const int first, const int nu
 			if ((nodo>=num_0nodes) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; } 
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
 	       		if ((nodo>=num_0nodes) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 	       		if ((nodo<num_0nodes) && (temp > aux5)) { temp = aux5; }
@@ -1462,8 +1379,7 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv(const int first, const int nu
 				}
 			}
 		//}
-	    }
-	        tidx += ((blockDim.x * gridDim.x)*NPRAG);
+		tidx += (blockDim.x * gridDim.x);
 	}
 }
 
@@ -1483,7 +1399,7 @@ void EG_gpu_solver_32() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 #ifdef MYDEBUG
@@ -1515,11 +1431,11 @@ void EG_gpu_solver_32() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB_PRAGMA(TRENTADUE,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL((TRENTADUE)*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 
-		//printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW1to2_32tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+//		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
+		kernel_EG_all_global_NEW1to2_32tpv<<<nbs, tpb>>>(0, counter_nodi0, TRENTADUE*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (1) done")
 
 		remove_nulls(hdev_nodeFlags2, num_nodi, &numAttivi);
@@ -1531,10 +1447,10 @@ void EG_gpu_solver_32() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB_PRAGMA(TRENTADUE,NPRAG,numAttivi);
-		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL((TRENTADUE)*(MYCEIL(numAttivi,NPRAG)), tpb));
+		tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 //		printf("attivi=%d\tnbs=%d tpb=%d  counter_nodi0:%d num_nodi:%d MG_pesi:%d)\n",numAttivi,nbs, tpb, counter_nodi0, num_nodi, MG_pesi);fflush(stdout);
-		kernel_EG_all_global_NEW2to1_32tpv<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
+		kernel_EG_all_global_NEW2to1_32tpv<<<nbs, tpb>>>(0, counter_nodi0, TRENTADUE*numAttivi, MG_pesi);
 		DEVSYNCANDCHECK_KER("kernel_EG_all_global (2) done")
 
 		remove_nulls(hdev_nodeFlags1, num_nodi, &numAttivi);
@@ -1568,7 +1484,7 @@ void EG_gpu_solver_PercentageThreshold() {
 	long extloop;
 	int numAttivi;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 
@@ -1596,7 +1512,7 @@ void EG_gpu_solver_PercentageThreshold() {
 	total_num_processed_nodes += (long)numAttivi;
 
 	while ((extloop>0) && (numAttivi>0)) {
-		tpb = EVAL_TPB(TRENTADUE,numAttivi);
+		tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 
 		if (((float) configuration.shuffleThreshold) < (100*((float)numAttivi)/((float)num_nodi))) {  // se percentuale di thread attivi elevata usa vertex-par
@@ -1616,7 +1532,7 @@ void EG_gpu_solver_PercentageThreshold() {
 		extloop--;
 		if (numAttivi < 1) {break;}  // caso in cui la computazione termina in un numero dispari di fasi
 
-		tpb = EVAL_TPB(TRENTADUE,numAttivi);
+		tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 		nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 		if (((float) configuration.shuffleThreshold) < (100*((float)numAttivi)/((float)num_nodi))) {  // se percentuale di thread attivi elevata usa vertex-par
 			kernel_EG_all_global_NEW2to1_none<<<nbs, tpb>>>(0, counter_nodi0, numAttivi, MG_pesi);
@@ -1735,10 +1651,10 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%DUE);
+	uint off = (uint)(tidx%2);
 	
 	while (tidx < num_nodi_attivi) {
-		nodo = dev_nodeFlags1[((tidx/DUE)<num_nodi_attivi1)?(tidx/DUE):((tidx/DUE)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
+		nodo = dev_nodeFlags1[((tidx/2)<num_nodi_attivi1)?(tidx/2):((tidx/2)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1747,7 +1663,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 		aux5 = dev_ResNodeValues1[aux3];
 
 		temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1+off; idy < aux2; idy+=DUE) {  // meta' lavoro a testa tra i due thread con off=0 e off=1 
+		for (idy=aux1+1+off; idy < aux2; idy+=2) {  // meta' lavoro a testa tra i due thread con off=0 e off=1 
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
@@ -1756,14 +1672,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		// VECCHIO:  aux5 = __shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
-                // RIMPIAZZATO DA:
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, DUE);  //0  legge il temp  di 1 
-		if (off==0) { // 0 aggiorna il proprio temp se il caso
-			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
-			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
-		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, DUE);  // tutti (0,1) leggono il temp  di 0
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1772,7 +1681,7 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 				if (off==0) {dev_ResNodeValues1[nodo] = temp;}
 				aux1 = dev_cscPtrInPredLists[nodo];
 				aux2 = dev_cscPtrInPredLists[nodo+1];
-				for (idy=aux1+off; idy < aux2; idy+=DUE) {
+				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
 					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
@@ -1787,10 +1696,10 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%DUE);
+	int off = tidx%2;
 	
 	while (tidx < num_nodi_attivi) {
-		nodo = dev_nodeFlags2[((tidx/DUE)<num_nodi_attivi1)?(tidx/DUE):((tidx/DUE)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
+		nodo = dev_nodeFlags2[((tidx/2)<num_nodi_attivi1)?(tidx/2):((tidx/2)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
 		old = dev_ResNodeValues1[nodo];
 		aux1 = dev_csrPtrInSuccLists[nodo];
 		aux2 = dev_csrPtrInSuccLists[nodo+1];
@@ -1799,7 +1708,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 		aux5 = dev_ResNodeValues1[aux3];
 
 		temp = OMINUS(aux5 , aux4);
-		for (idy=aux1+1+off; idy < aux2; idy+=DUE) {
+		for (idy=aux1+1+off; idy < aux2; idy+=2) {
 			aux3 = dev_csrSuccLists[idy];
 			aux4 = dev_csrPesiArchi[idy];
 			aux5 = dev_ResNodeValues1[aux3];
@@ -1808,14 +1717,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		// VECCHIO:  aux5 = __shfl_sync(0xFFFFFFFF, temp, (tidx%32)+1-2*off);  //1-off
-                // RIMPIAZZATO DA:
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, DUE);  //0  legge il temp  di 1 
-		if (off==0) { // 0 aggiorna il proprio temp se il caso
-			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
-			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
-		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, DUE);  // tutti (0,1) leggono il temp  di 0
+		aux5 = __shfl(temp, (tidx%32)+1-2*off);  //1-off
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
@@ -1823,7 +1725,7 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 				if (off==0) {dev_ResNodeValues1[nodo] = temp;}
 				aux1 = dev_cscPtrInPredLists[nodo];
 				aux2 = dev_cscPtrInPredLists[nodo+1];
-				for (idy=aux1+off; idy < aux2; idy+=DUE) {
+				for (idy=aux1+off; idy < aux2; idy+=2) {
 					aux3 = dev_cscPredLists[idy];
 					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
 				}
@@ -1861,17 +1763,17 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1895,7 +1797,7 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv_double(const int shufflesplit_
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%QUATTRO);
+	int off = tidx%QUATTRO;
 	
 	while (tidx < num_nodi_attivi) {
 		nodo = dev_nodeFlags2[((tidx/QUATTRO)<num_nodi_attivi1)?(tidx/QUATTRO):((tidx/QUATTRO)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
@@ -1916,17 +1818,17 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, QUATTRO); // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, QUATTRO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, QUATTRO);  // tutti (0,1,2,3) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -1973,22 +1875,22 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2012,7 +1914,7 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv_double(const int shufflesplit_
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%OTTO);
+	int off = tidx%OTTO;
 	
 	while (tidx < num_nodi_attivi) {
 		nodo = dev_nodeFlags2[((tidx/OTTO)<num_nodi_attivi1)?(tidx/OTTO):((tidx/OTTO)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
@@ -2033,22 +1935,22 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv_double(const int shufflesplit_
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, OTTO); 
+		aux5 = __shfl_down(temp, 4, OTTO); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, OTTO);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, OTTO);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, OTTO);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2095,27 +1997,27 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2139,7 +2041,7 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv_double(const int shufflesplit
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%SEDICI);
+	int off = tidx%SEDICI;
 	
 	while (tidx < num_nodi_attivi) {
 		nodo = dev_nodeFlags2[((tidx/SEDICI)<num_nodi_attivi1)?(tidx/SEDICI):((tidx/SEDICI)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
@@ -2160,27 +2062,27 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, SEDICI); 
+		aux5 = __shfl_down(temp, 8, SEDICI); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, SEDICI); 
+		aux5 = __shfl_down(temp, 4, SEDICI); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, SEDICI);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, SEDICI);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, SEDICI);  // tutti (0,...,7) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2226,32 +2128,32 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti (0,...,31) leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2275,7 +2177,7 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv_double(const int shufflesplit
 	int tidx = THREAD_ID;
 	int temp, val, idy, old, nodo;
 	int aux1, aux2, aux3, aux4, aux5;
-	uint off = (uint)(tidx%TRENTADUE);
+	int off = tidx%TRENTADUE;
 	
 	while (tidx < num_nodi_attivi) {
 		nodo = dev_nodeFlags2[((tidx/TRENTADUE)<num_nodi_attivi1)?(tidx/TRENTADUE):((tidx/TRENTADUE)+shufflesplit_index-num_nodi_attivi1)] -SHIFTNOME;
@@ -2296,32 +2198,32 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv_double(const int shufflesplit
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < val)) { temp = val; }
 		}
 		
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 16, TRENTADUE); 
+		aux5 = __shfl_down(temp, 16, TRENTADUE); 
 		if (off<16) { // 0,...,15 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 8, TRENTADUE); 
+		aux5 = __shfl_down(temp, 8, TRENTADUE); 
 		if (off<8) { // 0,...,7 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 4, TRENTADUE); 
+		aux5 = __shfl_down(temp, 4, TRENTADUE); 
 		if (off<4) { // 0,1,2,3 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
+		aux5 = __shfl_down(temp, 2, TRENTADUE);  // i legge il temp  di i+2 (ha effetto per i=0,1)
 		if (off<2) { // 0 e 1 aggiornano il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_down_sync(0xFFFFFFFF, temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
+		aux5 = __shfl_down(temp, 1, TRENTADUE);  //0  legge il temp  di 1 (leggono anche gli altri ma e' ininfluente)
 		if (off==0) { // 0 aggiorna il proprio temp se il caso
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
 			if (((nodo>=num_0nodes_2) || ((nodo<shufflesplit_index)&&(nodo>=num_0nodes_1))) && (temp < aux5)) { temp = aux5; }
 		}
-		aux5 = __shfl_sync(0xFFFFFFFF, temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
+		aux5 = __shfl(temp, 0, TRENTADUE);  // tutti leggono il temp  di 0
 
 		//if (off==0) { // i due thread off=0 e off=1 sono nello stesso warp
 			if (((nodo<num_0nodes_1) || ((nodo>=shufflesplit_index)&&(nodo<num_0nodes_2))) && (temp > aux5)) { temp = aux5; }
@@ -2356,7 +2258,7 @@ void EG_gpu_solver_OutdegreeSplit() {
 	int numAttivi1;
 	int numAttivi2;
 
-	int tpb = EVAL_TPB(1,num_nodi);
+	int tpb = (num_nodi< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(num_nodi, configuration.warpSize))) : configuration.threadsPerBlock;
 	int nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(num_nodi, tpb));
 
 
@@ -2406,60 +2308,80 @@ PRINTDEBUGSTUFF(" DOPO INIT-NULL ")
 	while ((extloop>0) && (numAttivi>0)) {
 		if (numAttivi > configuration.shuffleSplit_soglia) { // se molti nodi split in due kernel (con diverso shuffling) a seconda del outdegree
 			if (numAttivi1>0) {
-				tpb = EVAL_TPB(configuration.shuffleSplit_low,numAttivi1);
-				nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi1, tpb));
 				switch (configuration.shuffleSplit_low){
 					case 1:
+						tpb = ((numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi1, tpb));
 						kernel_EG_all_global_NEW1to2_none<<<nbs, tpb>>>(0, counter_nodi0_1, numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (1) done")
 						break;
 					case 2:
-						kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(0, counter_nodi0_1, DUE*numAttivi1, MG_pesi);
+						tpb = ((2*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi1, tpb));
+						kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(0, counter_nodi0_1, 2*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (1) done")
 						break;
 					case 4:
+						tpb = ((QUATTRO*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi1, tpb));
 						kernel_EG_all_global_NEW1to2_4tpv<<<nbs, tpb>>>(0, counter_nodi0_1, QUATTRO*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (1) done")
 						break;
 					case 8:
+						tpb = ((OTTO*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi1, tpb));
 						kernel_EG_all_global_NEW1to2_8tpv<<<nbs, tpb>>>(0, counter_nodi0_1, OTTO*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (1) done")
 						break;
 					case 16:
+						tpb = ((SEDICI*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi1, tpb));
 						kernel_EG_all_global_NEW1to2_16tpv<<<nbs, tpb>>>(0, counter_nodi0_1, SEDICI*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (1) done")
 						break;
 					case 32:
+						tpb = ((TRENTADUE*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi1, tpb));
 						kernel_EG_all_global_NEW1to2_32tpv<<<nbs, tpb>>>(0, counter_nodi0_1, TRENTADUE*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (1) done")
 						break;
 				}
 			}/*end if (numAttivi1>0)*/
 			if (numAttivi2>0) {
-				tpb = EVAL_TPB(configuration.shuffleSplit_up,numAttivi2);
-				nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi2, tpb));
 				switch (configuration.shuffleSplit_up){ 
 					case 1:
+						tpb = ((numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi2, tpb));
 						kernel_EG_all_global_NEW1to2_none<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (1) done")
 						break;
 					case 2:
-						kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, DUE*numAttivi2, MG_pesi);
+						tpb = ((2*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi2, tpb));
+						kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, 2*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (1) done")
 						break;
 					case 4:
+						tpb = ((QUATTRO*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi2, tpb));
 						kernel_EG_all_global_NEW1to2_4tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, QUATTRO*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (1) done")
 						break;
 					case 8:
+						tpb = ((OTTO*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi2, tpb));
 						kernel_EG_all_global_NEW1to2_8tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, OTTO*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (1) done")
 						break;
 					case 16:
+						tpb = ((SEDICI*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi2, tpb));
 						kernel_EG_all_global_NEW1to2_16tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, SEDICI*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (1) done")
 						break;
 					case 32:
+						tpb = ((TRENTADUE*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi2, tpb));
 						kernel_EG_all_global_NEW1to2_32tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, TRENTADUE*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (1) done")
 						break;
@@ -2467,34 +2389,39 @@ PRINTDEBUGSTUFF(" DOPO INIT-NULL ")
 			} /*end if (numAttivi2>0)*/
 
 		} else { /* ELSE di  (numAttivi > configuration.shuffleSplit_soglia). Pochi nodi: uso un kernel solo (come da opzioni su linea di comando */
-			tpb = EVAL_TPB(configuration.shuffleSplit_double,numAttivi);
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 			switch (configuration.shuffleSplit_double){
 				case 1:
+					tpb = ((numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 					kernel_EG_all_global_NEW1to2_none_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1,numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (d1) done")
 					break;
 				case 2:
-					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(DUE*numAttivi, tpb));
-					kernel_EG_all_global_NEW1to2_2tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, DUE*numAttivi, MG_pesi);
+					tpb = ((2*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi, tpb));
+					kernel_EG_all_global_NEW1to2_2tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, 2*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (d1) done")
 					break;
 				case 4:
+					tpb = ((QUATTRO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi, tpb));
 					kernel_EG_all_global_NEW1to2_4tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, QUATTRO*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (d1) done")
 					break;
 				case 8:
+					tpb = ((OTTO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi, tpb));
 					kernel_EG_all_global_NEW1to2_8tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, OTTO*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (d1) done")
 					break;
 				case 16:
+					tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
 					kernel_EG_all_global_NEW1to2_16tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, SEDICI*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (d1) done")
 					break;
 				case 32:
+					tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
 					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 					kernel_EG_all_global_NEW1to2_32tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, TRENTADUE*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (d1) done")
@@ -2518,60 +2445,80 @@ PRINTDEBUGSTUFF(" DOPO INIT-NULL ")
 
 		if (numAttivi > configuration.shuffleSplit_soglia) { // se molti nodi split in due kernel (con diverso shuffling) a seconda del outdegree
 			if (numAttivi1>0) {
-				tpb = EVAL_TPB(configuration.shuffleSplit_low,numAttivi1);
-				nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi1, tpb));
 				switch (configuration.shuffleSplit_low){
 					case 1:
+						tpb = ((numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi1, tpb));
 						kernel_EG_all_global_NEW2to1_none<<<nbs, tpb>>>(0, counter_nodi0_1, numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (2) done")
 						break;
 					case 2:
-						kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(0, counter_nodi0_1, DUE*numAttivi1, MG_pesi);
+						tpb = ((2*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi1, tpb));
+						kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(0, counter_nodi0_1, 2*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (2) done")
 						break;
 					case 4:
+						tpb = ((QUATTRO*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi1, tpb));
 						kernel_EG_all_global_NEW2to1_4tpv<<<nbs, tpb>>>(0, counter_nodi0_1, QUATTRO*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (2) done")
 						break;
 					case 8:
+						tpb = ((OTTO*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi1, tpb));
 						kernel_EG_all_global_NEW2to1_8tpv<<<nbs, tpb>>>(0, counter_nodi0_1, OTTO*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (2) done")
-						break;
+					break;
 					case 16:
+						tpb = ((SEDICI*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi1, tpb));
 						kernel_EG_all_global_NEW2to1_16tpv<<<nbs, tpb>>>(0, counter_nodi0_1, SEDICI*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (2) done")
 						break;
 					case 32:
+						tpb = ((TRENTADUE*numAttivi1)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi1, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi1, tpb));
 						kernel_EG_all_global_NEW2to1_32tpv<<<nbs, tpb>>>(0, counter_nodi0_1, TRENTADUE*numAttivi1, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (2) done")
 					break;
 				}
 			} /*end if (numAttivi1>0)*/
 			if (numAttivi2>0) {
-				tpb = EVAL_TPB(configuration.shuffleSplit_up,numAttivi2);
-				nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi2, tpb));
 				switch (configuration.shuffleSplit_up){ 
 					case 1:
+						tpb = ((numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi2, tpb));
 						kernel_EG_all_global_NEW2to1_none<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (2) done")
 						break;
 					case 2:
-						kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, DUE*numAttivi2, MG_pesi);
+						tpb = ((2*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi2, tpb));
+						kernel_EG_all_global_NEW2to1_2tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, 2*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (2) done")
 						break;
 					case 4:
+						tpb = ((QUATTRO*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi2, tpb));
 						kernel_EG_all_global_NEW2to1_4tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, QUATTRO*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (2) done")
 						break;
 					case 8:
+						tpb = ((OTTO*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi2, tpb));
 						kernel_EG_all_global_NEW2to1_8tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, OTTO*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (2) done")
 						break;
 					case 16:
+						tpb = ((SEDICI*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi2, tpb));
 						kernel_EG_all_global_NEW2to1_16tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, SEDICI*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (2) done")
 						break;
 					case 32:
+						tpb = ((TRENTADUE*numAttivi2)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi2, configuration.warpSize))) : configuration.threadsPerBlock;
+						nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi2, tpb));
 						kernel_EG_all_global_NEW2to1_32tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, TRENTADUE*numAttivi2, MG_pesi);
 						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (2) done")
 						break;
@@ -2579,30 +2526,40 @@ PRINTDEBUGSTUFF(" DOPO INIT-NULL ")
 			} /*end if (numAttivi2>0)*/
 
 		} else { /* ELSE di  (numAttivi > configuration.shuffleSplit_soglia). Pochi nodi: uso un kernel solo (come da opzioni su linea di comando */
-			tpb = EVAL_TPB(configuration.shuffleSplit_double,numAttivi);
-			nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 			switch (configuration.shuffleSplit_double){
 				case 1:
+					tpb = ((numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(numAttivi, tpb));
 					kernel_EG_all_global_NEW2to1_none_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1,numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (d2) done")
 					break;
 				case 2:
-					kernel_EG_all_global_NEW2to1_2tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, DUE*numAttivi, MG_pesi);
+					tpb = ((2*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(2*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(2*numAttivi, tpb));
+					kernel_EG_all_global_NEW2to1_2tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, 2*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (d2) done")
 					break;
 				case 4:
+					tpb = ((QUATTRO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(QUATTRO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(QUATTRO*numAttivi, tpb));
 					kernel_EG_all_global_NEW2to1_4tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, QUATTRO*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (d2) done")
 					break;
 				case 8:
+					tpb = ((OTTO*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(OTTO*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(OTTO*numAttivi, tpb));
 					kernel_EG_all_global_NEW2to1_8tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, OTTO*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (d2) done")
 					break;
 				case 16:
+					tpb = ((SEDICI*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(SEDICI*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(SEDICI*numAttivi, tpb));
 					kernel_EG_all_global_NEW2to1_16tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, SEDICI*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (d2) done")
 					break;
 				case 32:
+					tpb = ((TRENTADUE*numAttivi)< (int)configuration.threadsPerBlock) ? MIN(configuration.threadsPerBlock , MAX(configuration.warpSize, MYCEILSTEP(TRENTADUE*numAttivi, configuration.warpSize))) : configuration.threadsPerBlock;
+					nbs = MIN(MAX_BLOCKPERKERNEL, MYCEIL(TRENTADUE*numAttivi, tpb));
 					kernel_EG_all_global_NEW2to1_32tpv_double<<<nbs, tpb>>>(configuration.shuffleSplit_index, counter_nodi0_1, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi1, TRENTADUE*numAttivi, MG_pesi);
 					DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (d2) done")
 					break;
