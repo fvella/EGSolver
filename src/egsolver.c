@@ -30,7 +30,7 @@
 #include "cpu_solver.h"
 //#include "dev_common.h"
 #include "sorting_criteria.h"
-
+#include <omp.h>
 /** @cond NONDOC */ // non doxycumentati
 //PROTOTIPI da altri sorgenti:
 extern void checkDevice(int *deviceCount, config* conf);
@@ -321,6 +321,7 @@ int main(int argc, char *argv[]) {
 	struct timeb tp;
 	double deltatime;
 	int idz;
+        static int nthreads=1;
 
 #if (defined(__CYGWIN__) || defined(__CYGWIN32__))
 	char stringa[256] = { 'j', 'a', 'c', 'k', '\0' };
@@ -374,7 +375,13 @@ int main(int argc, char *argv[]) {
 				}
 				break;
  			case CPU_COMPUTATION:
+#pragma omp parallel
+{
+		nthreads = omp_get_num_threads();
+}
+                                               
 				printf("CPU stats:\n\t ..TO DO..\n");
+                                printf("\tCPU threads %d:\n\n",nthreads);
 				break;
 		}
 
@@ -426,6 +433,7 @@ int main(int argc, char *argv[]) {
 				printf("Total time: %lf sec \n", deltatime+statistics.inputtime+ statistics.solvingtime);
 				printf("Nodes per second: %lf \n", ((double)statistics.processedNodes)/(statistics.solvingtime));
 				//printf("Total time:        %14.6lf sec \n", deltatime+statistics.inputtime+ (statistics.alloctime+statistics.solvingtime)/1000 );
+                                printf("Threads used %d\n", nthreads);
 				printf("------------------------\n");
 				break;
  			case GPU_COMPUTATION:

@@ -52,17 +52,22 @@ void EG0_cpu_solver() {
 	int *data2;
 	int *temp;
 	int tempval;
+        int flag_per_thread[32];
 	int flag1=0;
         // Varaible for OpenMP thread management
         static int tid;
         static int nthreads=1;
+        int c=0;
+        for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
+#pragma omp threadprivate(tid)
+
 #pragma omp parallel
 {
         tid = omp_get_thread_num();
-        nthreads = omp_get_num_threads(); 
+//        nthreads = omp_get_num_threads(); 
 }
 
-	printf("Initializing cpu EG0 solver using (%d threads).\n", nthreads);
+//	printf("Initializing cpu EG0 solver using (%d threads).\n", nthreads);
 
 	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
 
@@ -89,14 +94,15 @@ void EG0_cpu_solver() {
 				}
 			}
 			if (data2[idx] < tempval) {
-				flag1=1;
+				flag_per_thread[tid]=1;
 				data2[idx] = tempval;
 			}
 		}
 
 		temp = data1; data1 = data2; data2 = temp; //swap ruoli degli array
-
-		if (flag1 == 0) {break;}
+                for (c = 0; c < 32; c++){ 
+                    if (flag_per_thread[c] == 0){break;}
+                }
 		if (timeout_expired == 1) {break;}
 	}
 	if ((max_loop%2) != 0) { //se numero loop e' dispari, il risultato e' nell'array host_ResNodeValues2[]. Lo metto in host_ResNodeValues1[]
