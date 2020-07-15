@@ -7,7 +7,7 @@
 
 
 #include "cpu_solver.h"
-
+#include <omp.h>
 extern char* str;
 extern int counter_nodi;
 extern int counter_nodi0;
@@ -53,8 +53,16 @@ void EG0_cpu_solver() {
 	int *temp;
 	int tempval;
 	int flag1=0;
+        // Varaible for OpenMP thread management
+        static int tid;
+        static int nthreads=1;
+#pragma omp parallel
+{
+        tid = omp_get_thread_num();
+        nthreads = omp_get_num_threads(); 
+}
 
-	printf("Initializing cpu EG0 solver.\n");
+	printf("Initializing cpu EG0 solver using (%d threads).\n", nthreads);
 
 	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
 
@@ -68,6 +76,7 @@ void EG0_cpu_solver() {
 
 	for (loop=1; loop<=max_loop; loop++) {
 		flag1=0;
+#pragma omp parallel for schedule(dynamic, 4)
 		for (idx=0; idx<counter_nodi; idx++) {
 			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {

@@ -13,8 +13,8 @@ VALOREPRAGMA = 1
 #CAPABILITY = -arch=sm_21
 #CAPABILITY = -arch=sm_30
 #CAPABILITY = -arch=sm_35
-CAPABILITY = -arch=sm_52
-#CAPABILITY = -arch=sm_70
+#CAPABILITY = -arch=sm_52
+CAPABILITY = -arch=sm_70
 
 
 CC = gcc
