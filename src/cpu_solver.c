@@ -40,25 +40,80 @@ extern uint timeout_expired;
 extern config  configuration;
 extern stat statistics;
 
+void EG0_scpu_solver() {
+        int idx;
+        int idy;
+        int val;
+        long max_loop = configuration.max_loop_val;
+        long loop;
+
+        int *data1;
+        int *data2;
+        int *temp;
+        int tempval;
+        int flag1=0;
+
+        printf("Initializing cpu EG0 solver.\n");
+
+        max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
+
+        data1 = host_ResNodeValues1;
+        data2 = host_ResNodeValues2;
+        for (idx=0; idx<counter_nodi; idx++) {
+                data1[idx] =0;
+                data2[idx] =0;
+        }
+        printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
+
+        for (loop=1; loop<=max_loop; loop++) {
+                flag1=0;
+                for (idx=0; idx<counter_nodi; idx++) {
+                        tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
+                        for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
+                                val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
+                                if ((idx<counter_nodi0) && (tempval > val)) {
+                                        tempval = val;
+                                }
+                                if ((idx>=counter_nodi0) && (tempval < val)) {
+                                        tempval = val;
+                                }
+                        }
+                        if (data2[idx] < tempval) {
+                                flag1=1;
+                                data2[idx] = tempval;
+                        }
+                }
+
+                temp = data1; data1 = data2; data2 = temp; //swap ruoli degli array
+
+                if (flag1 == 0) {break;}
+                if (timeout_expired == 1) {break;}
+        }
+        if ((max_loop%2) != 0) { //se numero loop e' dispari, il risultato e' nell'array host_ResNodeValues2[]. Lo metto in host_ResNodeValues1[]
+                temp = host_ResNodeValues1;
+                host_ResNodeValues1 = host_ResNodeValues2;
+                host_ResNodeValues2 = temp;
+        }
+        printf("End EG0 on CPU after %ld loops (each loop involves all nodes) (flag1=%d)\n", loop-1, flag1);
+        statistics.processedNodes = ((long)(loop-1))*((long)num_nodi);
+}
+
 
 void EG0_cpu_solver() {
 	int idx;
 	int idy;
-	int val;
 	long max_loop = configuration.max_loop_val;
 	long loop;
 
 	int *data1;
 	int *data2;
 	int *temp;
-	int tempval;
-        int flag_per_thread[32];
-	int flag1=0;
-        // Varaible for OpenMP thread management
-        static int tid;
-        static int nthreads=1;
-        int c=0;
-        for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
+    // Varaible for OpenMP thread management
+    int flag_per_thread[32];
+    static int tid;
+    static int nthreads=1;
+    int c=0;
+    for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
 #pragma omp threadprivate(tid)
 
 #pragma omp parallel
@@ -80,13 +135,13 @@ void EG0_cpu_solver() {
 	printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
         printf("counter nodi0 %d\n", counter_nodi0);
 	for (loop=1; loop<=max_loop; loop++) {
-		flag1=0;
         for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
 #pragma omp parallel for schedule(static, 8)
 		for (idx=0; idx<counter_nodi; idx++) {
-			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
+            printf("Tid loop%d\n", tid);
+			int tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
-				val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
+				int val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
 				if ((idx<counter_nodi0) && (tempval > val)) {
 					tempval = val;
 				}
