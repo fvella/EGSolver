@@ -14,17 +14,17 @@ VALOREPRAGMA = 1
 #CAPABILITY = -arch=sm_30
 #CAPABILITY = -arch=sm_35
 #CAPABILITY = -arch=sm_52
-CAPABILITY = -arch=sm_70
-
+CAPABILITY = -arch=sm_60
+#CAPABILITY = -arch=sm_70
 
 CC = gcc
 NVCC = nvcc
 FLEX = flex
 BISON = bison
-
+CUDA_HOME=${CUDATOOLKIT_HOME}
 #potrebbero servire anche   -L/usr/lib64   e    -lstdc++   o simili a seconda della distribuzione
-LIBS = -L /usr/local/cuda/lib64 -lcuda -lcudart -lm  -lstdc++ -lcusparse -lz
-INCLUDES= -I /usr/local/cuda/include
+LIBS = -L  ${CUDA_HOME}/lib64  -lcudart -lm  -lstdc++ -lcusparse -lz
+INCLUDES= -I  ${CUDA_HOME}/include
 
 OBJECTS = errori.o  parser.lex.o  parser.y.o  sig_handling.o  dev_solver.o  cpu_solver.o host_csr2csc.o
 CHEADERS = common.h  errori.h  egsolver.h  sig_handling.h cpu_solver.h host_csr2csc.h sorting_criteria.h
@@ -36,7 +36,7 @@ BIN_DIR = ../bin
 .PHONY: clean all help versioniShuffling
 
 #Opzioni di compilazione per il gcc
-CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp  -DNPRAG=$(VALOREPRAGMA)
+CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -ftree-vectorize -march=native -fno-math-errno -fopenmp  -DNPRAG=$(VALOREPRAGMA)
 #CCFLAG = -Wall -Wextra -Wformat=2  -O3  
 #CCFLAG = -Wall -Wformat=2  -O3  
 
