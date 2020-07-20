@@ -133,12 +133,10 @@ void EG0_cpu_solver() {
 		data2[idx] =0;
 	}
 	printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
-        printf("counter nodi0 %d\n", counter_nodi0);
 	for (loop=1; loop<=max_loop; loop++) {
         for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
 #pragma omp parallel for schedule(static, 8)
 		for (idx=0; idx<counter_nodi; idx++) {
-            printf("Tid loop%d\n", tid);
 			int tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
 				int val = OMINUS(data1[host_csrSuccLists[idy]] , host_csrPesiArchi[idy]);
@@ -154,11 +152,13 @@ void EG0_cpu_solver() {
 				data2[idx] = tempval;
 			}
 		}
-
+        int check = 0;
 		temp = data1; data1 = data2; data2 = temp; //swap ruoli degli array
-                for (c = 0; c < 32; c++){ 
-                    if (flag_per_thread[c] == 0){break;}
-                }
+        for (c = 0; c < 32; c++){ 
+            check += flag_per_thread[c];
+        }
+        if (check == 0) {break;}
+
 		if (timeout_expired == 1) {break;}
 	}
 	if ((max_loop%2) != 0) { //se numero loop e' dispari, il risultato e' nell'array host_ResNodeValues2[]. Lo metto in host_ResNodeValues1[]
@@ -166,7 +166,7 @@ void EG0_cpu_solver() {
 		host_ResNodeValues1 = host_ResNodeValues2;
 		host_ResNodeValues2 = temp;
 	}
-	printf("End EG0 on CPU after %ld loops (each loop involves all nodes) (flag1=%d)\n", loop-1, flag1);
+	printf("End EG0 on CPU after %ld loops (each loop involves all nodes)\n", loop-1);
 	statistics.processedNodes = ((long)(loop-1))*((long)num_nodi);
 }
 
