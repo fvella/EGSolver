@@ -81,7 +81,8 @@ void EG0_cpu_solver() {
         printf("counter nodi0 %d\n", counter_nodi0);
 	for (loop=1; loop<=max_loop; loop++) {
 		flag1=0;
-#pragma omp parallel for schedule(dynamic, 4) shared(counter_nodi0)
+        for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
+#pragma omp parallel for schedule(static, 8)
 		for (idx=0; idx<counter_nodi; idx++) {
 			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
