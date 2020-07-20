@@ -78,10 +78,10 @@ void EG0_cpu_solver() {
 		data2[idx] =0;
 	}
 	printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
-
+        printf("counter nodi0 %d\n", counter_nodi0);
 	for (loop=1; loop<=max_loop; loop++) {
 		flag1=0;
-#pragma omp parallel for schedule(dynamic, 4)
+#pragma omp parallel for schedule(dynamic, 4) shared(counter_nodi0)
 		for (idx=0; idx<counter_nodi; idx++) {
 			tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
