@@ -10,14 +10,14 @@ BASE=${HOME}/Flavio
 # $BASE/EGSolver_dataset/equivchecking
 #  e $BASE/EGSolver_dataset/modelchecking
 #ESEGUIRE :
-# mkdir $BASE/EGSolver_runs_omp
-# mkdir $BASE/EGSolver_runs_omp/clique
-# mkdir $BASE/EGSolver_runs_omp/ladder
-# mkdir $BASE/EGSolver_runs_omp/equivchecking
-# mkdir $BASE/EGSolver_runs_omp/modelchecking
-
+mkdir $BASE/EGSolver_runs_omp
+mkdir $BASE/EGSolver_runs_omp/clique
+mkdir $BASE/EGSolver_runs_omp/ladder
+mkdir $BASE/EGSolver_runs_omp/equivchecking
+mkdir $BASE/EGSolver_runs_omp/modelchecking
+#mkdir  ${BASE}/EGSolver_runs_omp/test
 # MODIFICARE:
-OPZIONI='--eg0 --cpu'
+OPZIONI='--eg0 --cpu --noout'
 
 
 # MODIFICARE:
@@ -27,8 +27,11 @@ TIMEOUT=600
 SOLVER=$BASE/EGSolver/bin/egsolver 
 
 
-for dataset in clique ladder equivchecking modelchecking ; do
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
 
+#for dataset in clique ladder equivchecking modelchecking ; do
+for dataset in test; do
 SORGENTE=$BASE/EGSolver_dataset/${dataset}
 DESTINO=$BASE/EGSolver_runs_omp/${dataset}
 
@@ -43,11 +46,14 @@ for core in 1 2 4 8 16 24 32 48 64 72; do
 date ;
 echo "$tem --> $sol.sol_${core}" ;
 export OMP_NUM_THREADS=${core} 
-echo "${SOLVER}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
+#echo "${SOLVER}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
+#${SOLVER} --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1
+${SOLVER} --input $istanza  $OPZIONI --timeout $TIMEOUT  > $DESTINO/${sol}.sol_${core}.txt  2>&1
+
 # MODIFICARE: togliere il commento dalla riga:
 # ${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 
 echo "--------------------------";
-echo "sleep 2 ;"
+echo "sleep 1 ;"
 done
 done
 
