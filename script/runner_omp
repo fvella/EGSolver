@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASE=${HOME}
+BASE=${HOME}/Flavio
 
 # MODIFICARE BASE opportunamente
 # mettere le istanze in subdir di  $BASE/EGSolver_dataset/
@@ -24,7 +24,7 @@ OPZIONI='--eg0 --cpu'
 TIMEOUT=1200
 
 # MODIFICARE:
-SOLVER=$BASE/EGSolver_luglio2020/bin/egsolver 
+SOLVER=$BASE/EGSolver/bin/egsolver 
 
 
 for dataset in clique ladder equivchecking modelchecking ; do
@@ -38,16 +38,16 @@ sol=`basename $tem .mpg`
 echo ;
 
 # ls -al $istanza 
-
 #MODIFICARE
-for core in 1 2 4 8 16 32 ; do
+for core in 1 2 4 8 16 24 32 48 64 72; do
 date ;
 echo "$tem --> $sol.sol_${core}" ;
+export OMP_NUM_THREADS=${core} 
 echo "${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
 # MODIFICARE: togliere il commento dalla riga:
 # ${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 
 echo "--------------------------";
-echo "sleep 3 ;"
+echo "sleep 2 ;"
 done
 done
 
