@@ -4,6 +4,13 @@
  *
  *
  */
+#ifndef MAX_THREADS
+#define MAX_THREADS 16
+#endif
+
+#ifndef CHUNK_SIZE
+#define CHUNK_SIZE 4
+#endif
 
 
 #include "cpu_solver.h"
@@ -109,20 +116,21 @@ void EG0_cpu_solver() {
 	int *data2;
 	int *temp;
     // Varaible for OpenMP thread management
-    int flag_per_thread[32];
+    int flag_per_thread[MAX_THREADS];
     static int tid;
-    static int nthreads=1;
+    static int nthx=1;
     int c=0;
-    for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
+    for (c = 0; c < MAX_THREADS ; c++) flag_per_thread[c] = 0;
 #pragma omp threadprivate(tid)
 
 #pragma omp parallel
 {
         tid = omp_get_thread_num();
-//        nthreads = omp_get_num_threads(); 
+        nthx = omp_get_num_threads();
+        nthx = (nthx < MAX_THREADS) ? nthx : MAX_THREADS; 
 }
 
-//	printf("Initializing cpu EG0 solver using (%d threads).\n", nthreads);
+	printf("Initializing cpu EG0 solver using (%d Mthreads).\n", nthx);
 
 	max_loop = aggiorna_max_loop((long)num_archi, (long)num_nodi, (long)MG_pesi, max_loop);
 
@@ -132,10 +140,10 @@ void EG0_cpu_solver() {
 		data1[idx] =0;
 		data2[idx] =0;
 	}
-	printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
+	//printf("Running EG0 on CPU. (MG_pesi=%d max_loop=%ld num nodes=%d num archi=%d max weight=%d\n", MG_pesi, max_loop, num_nodi, num_archi, max_pesi); fflush(stdout);
 	for (loop=1; loop<=max_loop; loop++) {
-        for (c = 0; c < 32; c++) flag_per_thread[c] = 0;
-#pragma omp parallel for schedule(static, 8)
+        for (c = 0; c < nthx; c++) flag_per_thread[c] = 0;
+#pragma omp parallel for schedule(guided, CHUNK_SIZE)
 		for (idx=0; idx<counter_nodi; idx++) {
 			int tempval = OMINUS(data1[host_csrSuccLists[host_csrPtrInSuccLists[idx]]] , host_csrPesiArchi[host_csrPtrInSuccLists[idx]]);
 			for (idy=(host_csrPtrInSuccLists[idx])+1; idy < host_csrPtrInSuccLists[idx+1]; idy++) {
@@ -154,8 +162,14 @@ void EG0_cpu_solver() {
 		}
         int check = 0;
 		temp = data1; data1 = data2; data2 = temp; //swap ruoli degli array
-        for (c = 0; c < 32; c++){ 
-            check += flag_per_thread[c];
+        for (c = 0; c < nthx; c++){
+            if (flag_per_thread[c] == 0){
+                check += flag_per_thread[c];
+            }
+            else {
+                check += flag_per_thread[c];
+                break;
+            }
         }
         if (check == 0) {break;}
 

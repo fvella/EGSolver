@@ -381,7 +381,11 @@ int main(int argc, char *argv[]) {
 }
                                                
 				printf("CPU stats:\n\t ..TO DO..\n");
-                                printf("\tCPU threads %d:\n\n",nthreads);
+                
+                printf("\tCPU threads %d:\n",nthreads);
+                printf("\tCHUNK SIZE %d:\n",CHUNK_SIZE);
+                printf("\tMAX_THREAD %d:\n",MAX_THREADS);
+
 				break;
 		}
 

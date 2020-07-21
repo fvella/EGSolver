@@ -1,0 +1,57 @@
+#!/bin/bash
+
+BASE=${HOME}
+
+# MODIFICARE BASE opportunamente
+# mettere le istanze in subdir di  $BASE/EGSolver_dataset/
+# $BASE/EGSolver_dataset/clique
+# $BASE/EGSolver_dataset/clique
+# $BASE/EGSolver_dataset/ladder
+# $BASE/EGSolver_dataset/equivchecking
+#  e $BASE/EGSolver_dataset/modelchecking
+#ESEGUIRE :
+# mkdir $BASE/EGSolver_runs_omp
+# mkdir $BASE/EGSolver_runs_omp/clique
+# mkdir $BASE/EGSolver_runs_omp/ladder
+# mkdir $BASE/EGSolver_runs_omp/equivchecking
+# mkdir $BASE/EGSolver_runs_omp/modelchecking
+
+# MODIFICARE:
+OPZIONI='--eg0 --cpu'
+
+
+# MODIFICARE:
+TIMEOUT=1200
+
+# MODIFICARE:
+SOLVER=$BASE/EGSolver_luglio2020/bin/egsolver 
+
+
+for dataset in clique ladder equivchecking modelchecking ; do
+
+SORGENTE=$BASE/EGSolver_dataset/${dataset}
+DESTINO=$BASE/EGSolver_runs_omp/${dataset}
+
+for istanza in $SORGENTE/*mpg.gz ; do \
+tem=`basename $istanza .gz`
+sol=`basename $tem .mpg`
+echo ;
+
+# ls -al $istanza 
+
+#MODIFICARE
+for core in 1 2 4 8 16 32 ; do
+date ;
+echo "$tem --> $sol.sol_${core}" ;
+echo "${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
+# MODIFICARE: togliere il commento dalla riga:
+# ${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 
+echo "--------------------------";
+echo "sleep 3 ;"
+done
+done
+
+echo "==========================";
+done
+
+

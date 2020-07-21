@@ -17,11 +17,17 @@ VALOREPRAGMA = 1
 CAPABILITY = -arch=sm_60
 #CAPABILITY = -arch=sm_70
 
+# Chunk size specifies the number of vertices that each thread processes 16 or 8 are generally good vaules
+CHUNK_SIZE=8
+# MAX_THREADS selects the size of the vector for checking the status of the vertices for the lifitng.
+# The value dpends on the systems 24 or 32 are reccomented values. 
+MAX_THREADS=80
+
 CC = gcc
 NVCC = nvcc
 FLEX = flex
 BISON = bison
-CUDA_HOME=${CUDATOOLKIT_HOME}
+CUDA_HOME=/usr/local/cuda-9.0/
 #potrebbero servire anche   -L/usr/lib64   e    -lstdc++   o simili a seconda della distribuzione
 LIBS = -L  ${CUDA_HOME}/lib64  -lcudart -lm  -lstdc++ -lcusparse -lz
 INCLUDES= -I  ${CUDA_HOME}/include
@@ -36,7 +42,7 @@ BIN_DIR = ../bin
 .PHONY: clean all help versioniShuffling
 
 #Opzioni di compilazione per il gcc
-CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -ftree-vectorize -march=native -fno-math-errno -fopenmp  -DNPRAG=$(VALOREPRAGMA)
+CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -ftree-vectorize -march=native -fno-math-errno -fopenmp  -DNPRAG=$(VALOREPRAGMA) -DMAX_THREADS=${MAX_THREADS} -DCHUNK_SIZE=${CHUNK_SIZE}
 #CCFLAG = -Wall -Wextra -Wformat=2  -O3  
 #CCFLAG = -Wall -Wformat=2  -O3  
 
