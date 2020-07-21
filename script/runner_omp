@@ -21,7 +21,7 @@ OPZIONI='--eg0 --cpu'
 
 
 # MODIFICARE:
-TIMEOUT=1200
+TIMEOUT=600
 
 # MODIFICARE:
 SOLVER=$BASE/EGSolver/bin/egsolver 
@@ -43,7 +43,7 @@ for core in 1 2 4 8 16 24 32 48 64 72; do
 date ;
 echo "$tem --> $sol.sol_${core}" ;
 export OMP_NUM_THREADS=${core} 
-echo "${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
+echo "${SOLVER}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 "
 # MODIFICARE: togliere il commento dalla riga:
 # ${SOLVER}_${core}  --input $istanza  $OPZIONI --timeout $TIMEOUT   | gzip > $DESTINO/${sol}.sol_${core}.gz  2>&1 
 echo "--------------------------";
