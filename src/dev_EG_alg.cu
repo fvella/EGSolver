@@ -103,7 +103,8 @@ __global__ void kernel_EG_all_global_NEW1to2_none(const int first, const int num
 			aux2 = dev_cscPtrInPredLists[nodo+1];
 			for (idy=aux1; idy < aux2; idy++) {
 				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 			}
 		}
 	    }
@@ -151,7 +152,8 @@ __global__ void kernel_EG_all_global_NEW2to1_none(const int first, const int num
 			aux2 = dev_cscPtrInPredLists[nodo+1];
 			for (idy=aux1; idy < aux2; idy++) {
 				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 			}
 		}
 	    }
@@ -439,7 +441,8 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=DUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 	    }
@@ -501,7 +504,8 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=DUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -653,7 +657,8 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=QUATTRO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -720,7 +725,8 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=QUATTRO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -878,7 +884,8 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=OTTO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -950,7 +957,8 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv(const int first, const int num
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=OTTO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1123,7 +1131,8 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv(const int first, const int nu
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1200,7 +1209,8 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv(const int first, const int nu
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1374,7 +1384,8 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv(const int first, const int nu
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=TRENTADUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1458,7 +1469,8 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv(const int first, const int nu
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=TRENTADUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1683,7 +1695,8 @@ __global__ void kernel_EG_all_global_NEW1to2_none_double(const int shufflesplit_
 			aux2 = dev_cscPtrInPredLists[nodo+1];
 			for (idy=aux1; idy < aux2; idy++) {
 				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 			}
 		}
 		tidx += (blockDim.x * gridDim.x);
@@ -1720,7 +1733,8 @@ __global__ void kernel_EG_all_global_NEW2to1_none_double(const int shufflesplit_
 			aux2 = dev_cscPtrInPredLists[nodo+1];
 			for (idy=aux1; idy < aux2; idy++) {
 				aux3 = dev_cscPredLists[idy];
-				dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+				atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 			}
 		}
 		tidx += (blockDim.x * gridDim.x);
@@ -1774,7 +1788,8 @@ __global__ void kernel_EG_all_global_NEW1to2_2tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=DUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1825,7 +1840,8 @@ __global__ void kernel_EG_all_global_NEW2to1_2tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=DUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1882,7 +1898,8 @@ __global__ void kernel_EG_all_global_NEW1to2_4tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=QUATTRO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1937,7 +1954,8 @@ __global__ void kernel_EG_all_global_NEW2to1_4tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=QUATTRO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -1999,7 +2017,8 @@ __global__ void kernel_EG_all_global_NEW1to2_8tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=OTTO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2059,7 +2078,8 @@ __global__ void kernel_EG_all_global_NEW2to1_8tpv_double(const int shufflesplit_
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=OTTO) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2126,7 +2146,8 @@ __global__ void kernel_EG_all_global_NEW1to2_16tpv_double(const int shufflesplit
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2191,7 +2212,8 @@ __global__ void kernel_EG_all_global_NEW2to1_16tpv_double(const int shufflesplit
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=SEDICI) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2262,7 +2284,8 @@ __global__ void kernel_EG_all_global_NEW1to2_32tpv_double(const int shufflesplit
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=TRENTADUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags2[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags2+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2332,7 +2355,8 @@ __global__ void kernel_EG_all_global_NEW2to1_32tpv_double(const int shufflesplit
 				aux2 = dev_cscPtrInPredLists[nodo+1];
 				for (idy=aux1+off; idy < aux2; idy+=TRENTADUE) {
 					aux3 = dev_cscPredLists[idy];
-					dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					//dev_nodeFlags1[aux3] = SHIFTNOME+aux3;  //RACE: qui diversi thread possono inserire lo stesso valore nella stessa posizione
+					atomicCAS(dev_nodeFlags1+aux3, 0, SHIFTNOME+aux3); 
 				}
 			}
 		//}
@@ -2441,27 +2465,28 @@ PRINTDEBUGSTUFF(" DOPO INIT-NULL ")
 				switch (configuration.shuffleSplit_up){ 
 					case 1:
 						kernel_EG_all_global_NEW1to2_none<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (no shuffle) (1b) done")
 						break;
 					case 2:
 						kernel_EG_all_global_NEW1to2_2tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, DUE*numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-2) (1b) done")
 						break;
 					case 4:
 						kernel_EG_all_global_NEW1to2_4tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, QUATTRO*numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-4) (1b) done")
 						break;
 					case 8:
 						kernel_EG_all_global_NEW1to2_8tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, OTTO*numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-8) (1b) done")
 						break;
 					case 16:
+//printf(" nbs:%d  %d   shuffleSplit_index:%d counter_nodi0_2:%d numAttivi2:%d\n", nbs, tpb, configuration.shuffleSplit_index, counter_nodi0_2, numAttivi2);
 						kernel_EG_all_global_NEW1to2_16tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, SEDICI*numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-16) (1b) done")
 						break;
 					case 32:
 						kernel_EG_all_global_NEW1to2_32tpv<<<nbs, tpb>>>(configuration.shuffleSplit_index, configuration.shuffleSplit_index+counter_nodi0_2, TRENTADUE*numAttivi2, MG_pesi);
-						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (1) done")
+						DEVSYNCANDCHECK_KER("kernel_EG_all_global (shuffle-32) (1b) done")
 						break;
 				}
 			} /*end if (numAttivi2>0)*/

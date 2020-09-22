@@ -442,6 +442,7 @@ int main(int argc, char *argv[]) {
 				break;
  			case GPU_COMPUTATION:
 				copia_dati_su_device();
+				printf("Use atomicCAS to avoid race conditions...\n");
 				gpu_solver();
 				printf("------------------------\nTiming:\n");
 				printf("Parsing time: %lf sec \n", statistics.inputtime );
@@ -508,8 +509,8 @@ void printUsage(char * str) {
 	fprintf(stderr,"  --eg [N]\n\tUse basic implementation of EG algorithm (node driven). Performs at most N loops. (Default: on, N=|MG||V|)\n");
 	fprintf(stderr,"  --eg0 [N]\n\tUse naive implementation of EG algorithm (node driven). Performs at most N loops. (Only effective with --cpu. Default: off, N=|MG||V|)\n");
 	fprintf(stderr,"  --shuffling N\n\tSelect kind of parallelism. N=1:vertex-parallelism. N=2,4,8,16,32:shuffle based (Effective with --gpu. Default: N=1)\n");
-	fprintf(stderr,"  --threshold P\n\tSet threshold for switching between vertex-parallelism (%%Active>P) and 32-shuffle-based parallelism. (Effective with --gpu. Default: off)\n");
-	fprintf(stderr,"  --outdegree N L U [T [D]]\n\tUse different parallelism for nodes with outdegree lesser-or-equal or greater than N\n\tL,U=1,2,4,8,16,32, select the parallelism: 1:vertex parallelism, K>1: K-shuffle based.\n\tApplies if the number of active nodes is greater-or-equal than T, otherwise uses D-shuffle based\n\t(Effective with --gpu. Default: off, T=%d D=%d)\n",DEFAULT_DEGREESPLIT_SOGLIA,DEFAULT_DEGREESPLIT_DOUBLE);
+	//fprintf(stderr,"  --threshold P\n\tSet threshold for switching between vertex-parallelism (%%Active>P) and 32-shuffle-based parallelism. (Effective with --gpu. Default: off)\n");
+	//fprintf(stderr,"  --outdegree N L U [T [D]]\n\tUse different parallelism for nodes with outdegree lesser-or-equal or greater than N\n\tL,U=1,2,4,8,16,32, select the parallelism: 1:vertex parallelism, K>1: K-shuffle based.\n\tApplies if the number of active nodes is greater-or-equal than T, otherwise uses D-shuffle based\n\t(Effective with --gpu. Default: off, T=%d D=%d)\n",DEFAULT_DEGREESPLIT_SOGLIA,DEFAULT_DEGREESPLIT_DOUBLE);
 	fprintf(stderr,"\n Useful weird options:\n");
 	fprintf(stderr,"  --printdegrees\n\tPrint statistics about in/out degrees of nodes. (Only effective with --cpu. Default: off)\n");
 	fprintf(stderr,"  --onelineout\n\tSolution in a single text line. (Default: off)\n");
@@ -612,68 +613,68 @@ void setconfig(int argc, char *argv[]) {
 				exit(1);
 			}
 		}
-		else if(strcmp(argv[i],"--threshold") == 0) {
-			checkExistsParameter(i+1, argc, "--threshold", argv);
-			configuration.shuffleThreshold = myatoi(argv[++i], "--threshold", argv);  //atoi(argv[++i]);
-			if ((configuration.shuffleThreshold < -1) || (configuration.shuffleThreshold > 100)) {
-				fprintf(stderr,"\nERROR illegal parameter of option: --threshold %s (specify a value in [-1..100])\n\n", argv[i]);
-				printShortUsage(argv[0]);
-				exit(1);
-			}
-			configuration.kinfOfParallelism = KINDPARALLELISM_PERCENTAGESPLIT;
-		}
-		else if(strcmp(argv[i],"--outdegree") == 0) {
-			checkExistsParameter(i+1, argc, "--outdegree", argv);
-			configuration.shuffleSplit_val = myatoi(argv[++i], "--outdegree", argv);
-			if ((configuration.shuffleSplit_val < 0)) {
-				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %s (specify a positive integer)\n\n", argv[i]);
-				printShortUsage(argv[0]);
-				exit(1);
-			}
-			checkExistsParameter(i+1, argc, "--outdegree", argv);
-			configuration.shuffleSplit_low = myatoi(argv[++i], "--outdegree", argv);
-			if ((configuration.shuffleSplit_low != 1) && (configuration.shuffleSplit_low != 2) && (configuration.shuffleSplit_low != 4) && 
-                            (configuration.shuffleSplit_low != 8) && (configuration.shuffleSplit_low != 16) && (configuration.shuffleSplit_low != 32)) {
-				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, argv[i]);
-				printShortUsage(argv[0]);
-				exit(1);
-			}
-			checkExistsParameter(i+1, argc, "--outdegree", argv);
-			configuration.shuffleSplit_up = myatoi(argv[++i], "--outdegree", argv);
-			if ((configuration.shuffleSplit_up != 1) && (configuration.shuffleSplit_up != 2) && (configuration.shuffleSplit_up != 4) && 
-                            (configuration.shuffleSplit_up != 8) && (configuration.shuffleSplit_up != 16) && (configuration.shuffleSplit_up != 32)) {
-				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, argv[i]);
-				printShortUsage(argv[0]);
-				exit(1);
-			}
-			configuration.kinfOfParallelism = KINDPARALLELISM_OUTDEGREESPLIT;
-
-			i++;
-			if (checkExistsOptionalParameter(i, argc, argv) == 1) {
-				int ttemp = myatoi(argv[i], "--outdegree", argv);
-				if ((ttemp < 0) || (ttemp >= INT_MAX)) {
-					fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, argv[i]);
-					printShortUsage(argv[0]);
-					exit(1);
-				}
-				configuration.shuffleSplit_soglia = ttemp;
-				i++;
-				if (checkExistsOptionalParameter(i, argc, argv) == 1) {
-					configuration.shuffleSplit_double = myatoi(argv[i], "--outdegree", argv);
-					if ((configuration.shuffleSplit_double != 1) && (configuration.shuffleSplit_double != 2) && (configuration.shuffleSplit_double != 4) && 
-					    (configuration.shuffleSplit_double != 8) && (configuration.shuffleSplit_double != 16) && (configuration.shuffleSplit_double != 32)) {
-						fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, configuration.shuffleSplit_soglia, argv[i]);
-						printShortUsage(argv[0]);
-						exit(1);
-					}
-					configuration.shuffleSplit_soglia = ttemp;
-				} else {
-					i--;
-				}
-			} else {
-				i--;
-			}
-		}
+//		else if(strcmp(argv[i],"--threshold") == 0) {
+//			checkExistsParameter(i+1, argc, "--threshold", argv);
+//			configuration.shuffleThreshold = myatoi(argv[++i], "--threshold", argv);  //atoi(argv[++i]);
+//			if ((configuration.shuffleThreshold < -1) || (configuration.shuffleThreshold > 100)) {
+//				fprintf(stderr,"\nERROR illegal parameter of option: --threshold %s (specify a value in [-1..100])\n\n", argv[i]);
+//				printShortUsage(argv[0]);
+//				exit(1);
+//			}
+//			configuration.kinfOfParallelism = KINDPARALLELISM_PERCENTAGESPLIT;
+//		}
+//		else if(strcmp(argv[i],"--outdegree") == 0) {
+//			checkExistsParameter(i+1, argc, "--outdegree", argv);
+//			configuration.shuffleSplit_val = myatoi(argv[++i], "--outdegree", argv);
+//			if ((configuration.shuffleSplit_val < 0)) {
+//				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %s (specify a positive integer)\n\n", argv[i]);
+//				printShortUsage(argv[0]);
+//				exit(1);
+//			}
+//			checkExistsParameter(i+1, argc, "--outdegree", argv);
+//			configuration.shuffleSplit_low = myatoi(argv[++i], "--outdegree", argv);
+//			if ((configuration.shuffleSplit_low != 1) && (configuration.shuffleSplit_low != 2) && (configuration.shuffleSplit_low != 4) && 
+//                            (configuration.shuffleSplit_low != 8) && (configuration.shuffleSplit_low != 16) && (configuration.shuffleSplit_low != 32)) {
+//				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, argv[i]);
+//				printShortUsage(argv[0]);
+//				exit(1);
+//			}
+//			checkExistsParameter(i+1, argc, "--outdegree", argv);
+//			configuration.shuffleSplit_up = myatoi(argv[++i], "--outdegree", argv);
+//			if ((configuration.shuffleSplit_up != 1) && (configuration.shuffleSplit_up != 2) && (configuration.shuffleSplit_up != 4) && 
+//                            (configuration.shuffleSplit_up != 8) && (configuration.shuffleSplit_up != 16) && (configuration.shuffleSplit_up != 32)) {
+//				fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %s (specify a value among 1,2,4,8,16,32)\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, argv[i]);
+//				printShortUsage(argv[0]);
+//				exit(1);
+//			}
+//			configuration.kinfOfParallelism = KINDPARALLELISM_OUTDEGREESPLIT;
+//
+//			i++;
+//			if (checkExistsOptionalParameter(i, argc, argv) == 1) {
+//				int ttemp = myatoi(argv[i], "--outdegree", argv);
+//				if ((ttemp < 0) || (ttemp >= INT_MAX)) {
+//					fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, argv[i]);
+//					printShortUsage(argv[0]);
+//					exit(1);
+//				}
+//				configuration.shuffleSplit_soglia = ttemp;
+//				i++;
+//				if (checkExistsOptionalParameter(i, argc, argv) == 1) {
+//					configuration.shuffleSplit_double = myatoi(argv[i], "--outdegree", argv);
+//					if ((configuration.shuffleSplit_double != 1) && (configuration.shuffleSplit_double != 2) && (configuration.shuffleSplit_double != 4) && 
+//					    (configuration.shuffleSplit_double != 8) && (configuration.shuffleSplit_double != 16) && (configuration.shuffleSplit_double != 32)) {
+//						fprintf(stderr,"\nERROR illegal parameter of option: --outdegree %d %d %d %d %s\n\n", configuration.shuffleSplit_val, configuration.shuffleSplit_low, configuration.shuffleSplit_up, configuration.shuffleSplit_soglia, argv[i]);
+//						printShortUsage(argv[0]);
+//						exit(1);
+//					}
+//					configuration.shuffleSplit_soglia = ttemp;
+//				} else {
+//					i--;
+//				}
+//			} else {
+//				i--;
+//			}
+//		}
 		else if(strcmp(argv[i],"--input") == 0) {
 			(configuration.filename)[0]='\0';
 			checkExistsParameter(i+1, argc, "--input", argv);

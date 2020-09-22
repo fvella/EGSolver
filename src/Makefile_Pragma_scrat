@@ -14,24 +14,18 @@ VALOREPRAGMA = 1
 #CAPABILITY = -arch=sm_30
 #CAPABILITY = -arch=sm_35
 #CAPABILITY = -arch=sm_52
-CAPABILITY = -arch=sm_50
-#CAPABILITY = -arch=sm_70
+#CAPABILITY = -arch=sm_50
+CAPABILITY = -arch=sm_70
 
-# Chunk size specifies the number of vertices that each thread processes 16 or 8 are generally good vaules
-CHUNK_SIZE=8
-# MAX_THREADS selects the size of the vector for checking the status of the vertices for the lifitng.
-# The value dpends on the systems 24 or 32 are reccomented values. 
-MAX_THREADS=80
 
 CC = gcc
 NVCC = nvcc
 FLEX = flex
 BISON = bison
-CUDA_HOME=/usr/local/cuda-10.2/
-#CUDA_HOME=/usr/local/cuda-9.0/
+
 #potrebbero servire anche   -L/usr/lib64   e    -lstdc++   o simili a seconda della distribuzione
-LIBS = -L  ${CUDA_HOME}/lib64  -lcudart -lm  -lstdc++ -lcusparse -lz
-INCLUDES= -I  ${CUDA_HOME}/include
+LIBS = -L /usr/local/cuda/lib64 -lcuda -lcudart -lm  -lstdc++ -lcusparse -lz
+INCLUDES= -I /usr/local/cuda/include
 
 OBJECTS = errori.o  parser.lex.o  parser.y.o  sig_handling.o  dev_solver.o  cpu_solver.o host_csr2csc.o
 CHEADERS = common.h  errori.h  egsolver.h  sig_handling.h cpu_solver.h host_csr2csc.h sorting_criteria.h
@@ -43,7 +37,7 @@ BIN_DIR = ../bin
 .PHONY: clean all help versioniShuffling
 
 #Opzioni di compilazione per il gcc
-CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -ftree-vectorize -march=native -fno-math-errno -fopenmp  -DNPRAG=$(VALOREPRAGMA) -DMAX_THREADS=${MAX_THREADS} -DCHUNK_SIZE=${CHUNK_SIZE}
+CCFLAG = -Wall -Wextra -Wno-sign-compare -Wformat=2  -O3 -fopenmp  -DNPRAG=$(VALOREPRAGMA)
 #CCFLAG = -Wall -Wextra -Wformat=2  -O3  
 #CCFLAG = -Wall -Wformat=2  -O3  
 
@@ -65,7 +59,7 @@ GFLAG =  -DNPRAG=$(VALOREPRAGMA)
 #GFLAG = -use_fast_math --ptxas-options="-v" 
 
 # Varie opzioni per il DEBUG con nvcc:
-#GFLAG = -pg -g -G -lineinfo --compiler-options -Wall
+#GFLAG = -pg -g -G -lineinfo --compiler-options -Wall  -DNPRAG=$(VALOREPRAGMA)
 #GFLAG = -pg -g -G -lineinfo --ptxas-options="-v" -Xptxas -dlcm=ca --compiler-options -Wall
 #GFLAG = -pg -g -G --maxrregcount 16 --ptxas-options="-v" -Xptxas -dlcm=ca
 #GFLAG = -pg -g -G --ptxas-options="-v"
