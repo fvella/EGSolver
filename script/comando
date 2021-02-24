@@ -1,0 +1,15 @@
+
+#  /home/flavio/EGSolver/bin/egsolver --input /home/flavio/EGSolver_dataset/equivchecking/E12_Buffer_Onebit__datasize2_capacity1_windowsize1_eqbranching-bisim.mpg.gz --eg 50000 --gpu --shuffling 16  --noout
+
+#  dove il shuffling cambia 1,2,4,8,16,32
+
+#  50000 è il bound al numero di loop
+
+
+#  per il profiling:
+
+# CREDO CHE nvprof vada eseguito come ROOT
+
+nvprof --metrics gst_throughput,gst_efficiency,achieved_occupancy,warp_execution_efficiency  /home/flavio/EGSolver/bin/egsolver --input /home/flavio/EGSolver_dataset/equivchecking/E12_Buffer_Onebit__datasize2_capacity1_windowsize1_eqbranching-bisim.mpg.gz --eg 50000 --gpu --noout  --shuffling 16 
+
+
